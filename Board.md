@@ -12,8 +12,10 @@
   - Status Bar (workspaces, time, system settings)
     - System settings windows (bluetooth, wifi, brightness, etc)
     - Notification center
+    - System tray
     - Update control
-    - Calendar  
+    - Calendar
+    - Widgets (github, ai usage, etc)
   - Wallpaper selector menu
   - Powermenu
   - App launcher menu
