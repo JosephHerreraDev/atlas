@@ -1,0 +1,2 @@
+# atlas
+NixOS custom configuration
