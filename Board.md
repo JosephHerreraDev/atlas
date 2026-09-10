@@ -25,6 +25,7 @@
   - Clipboard menu (pin, delete, images)
   - Volume / Brightness indicator
   - Recording indicator
+  - Sticky notes
   - Custom player (visualizer, lyrics, album cover, etc)
 
 # Ready
