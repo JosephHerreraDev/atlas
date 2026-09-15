@@ -16,6 +16,7 @@ in
   
   imports = [
     ./modules/theme.nix
+    ./modules/wallpapers.nix
   ];
 
   programs.bash = {
