@@ -6,7 +6,6 @@ let
 
   configs = {
     hypr = "hypr";
-    fastfetch = "fastfetch";
   };
 in
 
