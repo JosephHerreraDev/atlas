@@ -1,5 +1,14 @@
 { config, pkgs, ... }:
 
+let
+  dotfiles = "${config.home.homeDirectory}/atlas/config";
+  create_symlink = path: config.lib.file.mkOutOfStoreSymlink path;
+
+  configs = {
+    hypr = "hypr";
+  };
+in
+
 {
   home.username = "joe";
   home.homeDirectory = "/home/joe";
@@ -25,6 +34,13 @@
       background_opacity = 0.9;
     };
   };
+  
+  xdg.configFile = builtins.mapAttrs
+	  (name: subpath: {
+	   source = create_symlink "${dotfiles}/${subpath}";
+	   recursive = true;
+	   })
+  configs;
   
   # wayland.windowManager.hyprland.enable = true;
   # home.file.".config/hypr".source = /home/joe/dotfiles/hypr;
