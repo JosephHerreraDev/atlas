@@ -40,6 +40,11 @@
   nixpkgs.config.allowUnfree = true;
 
   environment.systemPackages = with pkgs; [
+    hyprpaper
+    quickshell
+    hyprlock
+    yazi
+    obsidian
     brave
     git
     btop
