@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  dotfiles = "${config.home.homeDirectory}/atlas/config";
+  dotfiles = "${config.home.homeDirectory}/.local/share/atlas/config";
   create_symlink = path: config.lib.file.mkOutOfStoreSymlink path;
 
   configs = {
@@ -28,13 +28,6 @@ in
        export PS1='\[\e[38;5;76m\]\u\[\e[0m\] in \[\e[38;5;32m\]\w\[\e[0m\] \\$ '
     '';
   };
-
-  programs.kitty = {
-    enable = true;
-    settings = {
-      background_opacity = 0.9;
-    };
-  };
   
   xdg.configFile = builtins.mapAttrs
 	  (name: subpath: {
@@ -42,8 +35,5 @@ in
 	   recursive = true;
 	   })
   configs;
-  
-  # wayland.windowManager.hyprland.enable = true;
-  # home.file.".config/hypr".source = /home/joe/dotfiles/hypr;
 }
 
