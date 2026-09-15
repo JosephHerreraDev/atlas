@@ -6,6 +6,8 @@ let
 
   configs = {
     hypr = "hypr";
+    fastfetch = "fastfetch";
+    kitty = "kitty";
   };
 in
 
@@ -18,6 +20,8 @@ in
     ./modules/theme.nix
     ./modules/wallpapers.nix
   ];
+
+  programs.kitty.enable = true;
 
   programs.bash = {
     enable = true;
