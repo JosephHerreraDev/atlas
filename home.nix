@@ -11,6 +11,7 @@ let
     fastfetch = "fastfetch";
     kitty = "kitty";
     tmux = "tmux";
+    starship = "starship";
   };
 in
 
@@ -43,10 +44,11 @@ in
     shellAliases = {
       nrs = "sudo nixos-rebuild switch --impure --flake ~/.local/share/atlas#atlas";
     };
+  };
 
-    initExtra = ''
-      export PS1='\[\e[38;5;76m\]\u\[\e[0m\] in \[\e[38;5;32m\]\w\[\e[0m\] \\$ '
-    '';
+  programs.starship = {
+    enable = true;
+    enableBashIntegration = true;
   };
 
   xdg.configFile = builtins.mapAttrs
