@@ -12,6 +12,7 @@ let
     kitty = "kitty";
     tmux = "tmux";
     starship = "starship";
+    zathura = "zathura";
   };
 in
 
@@ -28,6 +29,7 @@ in
   home.packages = with pkgs; [
     kitty
     tmux 
+    zathura 
   ];
 
   home.sessionVariables = {
