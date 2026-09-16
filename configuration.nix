@@ -4,9 +4,8 @@
   imports =
     [
       /etc/nixos/hardware-configuration.nix
+      ./modules/nvidia.nix
     ];
-
-  hardware.nvidia.modesetting.enable = true;
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -15,8 +14,6 @@
   networking.networkmanager.enable = true;
 
   time.timeZone = "America/Mexico_City";
-
-  services.xserver.enable = true;
 
   services.displayManager.sddm = {
     enable = true;
