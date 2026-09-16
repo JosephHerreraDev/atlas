@@ -4,22 +4,23 @@
 
 ## Navigation
 
-| Keybinding             | Function                       |
-| ---------------------- | ------------------------------ |
-| `SUPER + Q`            | Close app                      |
-| `SUPER + ESCAPE`       | Exit                           |
-| `SUPER + V`            | Toggle floating                |
-| `SUPER + P`            | Toggle pseudo                  |
-| `SUPER + SHIFT + J`    | Toggle split                   |
-| `SUPER + S`            | Scratchpad workspace           |
-| `SUPER + SHIFT + S `   | Move to scratchpad workspace   |
-| `SUPER + F `           | Fullscreen                     |
-| `SUPER + 1-0 `         | Go to workspace                |
-| `SUPER + SHIFT + 1-0 ` | Move window to workspace       |
-| `SUPER + h `           | Move focus to window on left   |
-| `SUPER + j `           | Move focus to window on bottom |
-| `SUPER + k `           | Move focus to window on top    |
-| `SUPER + Right`        | Move focus to window on right  |
+| Keybinding               | Function                       |
+| ------------------------ | ------------------------------ |
+| `SUPER + Q`              | Close app                      |
+| `SUPER + SHIFT + ESCAPE` | Exit                           |
+| `SUPER + ESCAPE`         | Power Menu                     |
+| `SUPER + V`              | Toggle floating                |
+| `SUPER + P`              | Toggle pseudo                  |
+| `SUPER + SHIFT + J`      | Toggle split                   |
+| `SUPER + S`              | Scratchpad workspace           |
+| `SUPER + SHIFT + S `     | Move to scratchpad workspace   |
+| `SUPER + F `             | Fullscreen                     |
+| `SUPER + 1-0 `           | Go to workspace                |
+| `SUPER + SHIFT + 1-0 `   | Move window to workspace       |
+| `SUPER + h `             | Move focus to window on left   |
+| `SUPER + j `             | Move focus to window on bottom |
+| `SUPER + k `             | Move focus to window on top    |
+| `SUPER + Right`          | Move focus to window on right  |
 
 ## Menu and Utilities
 
