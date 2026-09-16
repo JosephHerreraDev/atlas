@@ -5,7 +5,7 @@ require("hyprland/variables")
 require("hyprland/permissions")
 require("hyprland/looknfeel")
 
-local themeConfig = os.getenv("HOME") .. "/.config/style/current/theme/hyprland.lua"
+local themeConfig = os.getenv("HOME") .. "/.config/style/current/hyprland.lua"
 local themeFile = io.open(themeConfig, "r")
 if themeFile ~= nil then
   themeFile:close()
