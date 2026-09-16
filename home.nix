@@ -1,19 +1,20 @@
 { config, pkgs, ... }:
 
 let
-  atlasPath = "${config.home.homeDirectory}/.local/share/atlas";
-  dotfiles = "${atlasPath}/config";
+atlasPath = "${config.home.homeDirectory}/.local/share/atlas";
+dotfiles = "${atlasPath}/config";
 
-  create_symlink = path: config.lib.file.mkOutOfStoreSymlink path;
+create_symlink = path: config.lib.file.mkOutOfStoreSymlink path;
 
-  configs = {
-    hypr = "hypr";
-    fastfetch = "fastfetch";
-    kitty = "kitty";
-    tmux = "tmux";
-    starship = "starship";
-    zathura = "zathura";
-  };
+configs = {
+  fastfetch = "fastfetch";
+  hypr = "hypr";
+  kitty = "kitty";
+  nvim = "nvim";
+  starship = "starship";
+  tmux = "tmux";
+  zathura = "zathura";
+};
 in
 
 {
@@ -23,13 +24,14 @@ in
 
   imports = [
     ./modules/theme.nix
-    ./modules/wallpapers.nix
+      ./modules/wallpapers.nix
   ];
 
   home.packages = with pkgs; [
     kitty
-    tmux 
-    zathura 
+      tmux 
+      zathura 
+      neovim 
   ];
 
   home.sessionVariables = {
@@ -55,7 +57,7 @@ in
 
   xdg.configFile = builtins.mapAttrs
     (name: subpath: {
-      source = create_symlink "${dotfiles}/${subpath}";
-    })
-    configs;
+     source = create_symlink "${dotfiles}/${subpath}";
+     })
+  configs;
 }
