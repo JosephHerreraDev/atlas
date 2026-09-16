@@ -21,7 +21,10 @@ in
     ./modules/wallpapers.nix
   ];
 
-  programs.kitty.enable = true;
+
+  home.packages = with pkgs; [
+    kitty
+  ];
 
   programs.bash = {
     enable = true;
@@ -36,7 +39,6 @@ in
   xdg.configFile = builtins.mapAttrs
 	  (name: subpath: {
 	   source = create_symlink "${dotfiles}/${subpath}";
-	   recursive = true;
 	   })
   configs;
 }
