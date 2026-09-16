@@ -10,6 +10,7 @@ let
     hypr = "hypr";
     fastfetch = "fastfetch";
     kitty = "kitty";
+    tmux = "tmux";
   };
 in
 
@@ -25,6 +26,7 @@ in
 
   home.packages = with pkgs; [
     kitty
+    tmux 
   ];
 
   home.sessionVariables = {
