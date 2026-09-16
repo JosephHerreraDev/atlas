@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
+
+THEMES_DIR="$ATLAS_PATH/themes"
+WALLPAPERS_DIR="$HOME/Pictures/wallpapers/themes"
+
+STYLE_DIR="$HOME/.config/style"
+CURRENT_THEME_DIR="$STYLE_DIR/current"
+NEXT_THEME_DIR="$STYLE_DIR/next-theme"
+
+theme="${1:-}"
+
+if [[ -z "$theme" ]]; then
+    echo "Usage: theme-set <theme>"
+    exit 1
+fi
+
+THEME_FILE="$THEMES_DIR/$theme.toml"
+THEME_WALLPAPERS_DIR="$WALLPAPERS_DIR/$theme"
+
+# Validate theme
+if [[ ! -f "$THEME_FILE" ]]; then
+    echo "Theme does not exist: $THEME_FILE"
+    exit 1
+fi
+
+if [[ ! -d "$THEME_WALLPAPERS_DIR" ]]; then
+    echo "Wallpaper directory does not exist: $THEME_WALLPAPERS_DIR"
+    exit 1
+fi
+
+#
+# Prepare next theme
+#
+
+rm -rf "$NEXT_THEME_DIR"
+mkdir -p "$NEXT_THEME_DIR"
+
+cp "$THEME_FILE" "$NEXT_THEME_DIR/colors.toml"
+
+#
+# Generate application-specific styles
+#
+
+theme-set-templates
+
+#
+# Select wallpaper
+#
+
+mapfile -t wallpapers < <(
+    find "$THEME_WALLPAPERS_DIR" \
+        -maxdepth 1 \
+        -type f \
+        \( \
+            -iname '*.jpg' -o \
+            -iname '*.jpeg' -o \
+            -iname '*.png' -o \
+            -iname '*.webp' \
+        \)
+)
+
+if (( ${#wallpapers[@]} == 0 )); then
+    echo "No wallpapers found for theme: $theme"
+    exit 1
+fi
+
+wallpaper="${wallpapers[RANDOM % ${#wallpapers[@]}]}"
+
+# Copy selected wallpaper to a stable path
+cp "$wallpaper" "$NEXT_THEME_DIR/background"
+
+#
+# Store active theme name
+#
+
+printf '%s\n' "$theme" > "$NEXT_THEME_DIR/theme"
+
+#
+# Promote next theme to current
+#
+
+rm -rf "$CURRENT_THEME_DIR"
+mv "$NEXT_THEME_DIR" "$CURRENT_THEME_DIR"
+
+theme-refresh
+
+echo "Theme set to: $theme"

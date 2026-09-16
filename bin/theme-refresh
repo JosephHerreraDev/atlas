@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Restart hyprpaper
+pkill -x hyprpaper || true
+
+while pgrep -x hyprpaper >/dev/null; do
+    sleep 0.05
+done
+
+hyprpaper >/dev/null 2>&1 &
+
+# Reload Hyprland config
+hyprctl reload >/dev/null
+
+# Reload Kitty config
+if pgrep -x kitty >/dev/null; then
+    killall -SIGUSR1 kitty >/dev/null
+fi

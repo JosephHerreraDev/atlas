@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
+
+TEMPLATES_DIR="$ATLAS_PATH/themes/templates"
+USER_TEMPLATES_DIR="$HOME/.config/atlas/templates"
+
+STYLE_DIR="$HOME/.config/style"
+NEXT_THEME_DIR="$STYLE_DIR/next-theme"
+COLORS_FILE="$NEXT_THEME_DIR/colors.toml"
+
+mkdir -p "$NEXT_THEME_DIR"
+
+hex_to_rgb() {
+    local hex="${1#\#}"
+    printf "%d,%d,%d" \
+        "0x${hex:0:2}" \
+        "0x${hex:2:2}" \
+        "0x${hex:4:2}"
+}
+
+escape_sed_replacement() {
+    printf '%s' "$1" | sed 's/[&|\]/\\&/g'
+}
+
+if [[ ! -f "$COLORS_FILE" ]]; then
+    echo "Colors file not found: $COLORS_FILE"
+    exit 1
+fi
+
+sed_script="$(mktemp)"
+trap 'rm -f "$sed_script"' EXIT
+
+while IFS= read -r line; do
+    # Only process:
+    # key = "value"
+    if [[ $line =~ ^[[:space:]]*([a-zA-Z0-9_-]+)[[:space:]]*=[[:space:]]*\"([^\"]+)\" ]]; then
+        key="${BASH_REMATCH[1]}"
+        value="${BASH_REMATCH[2]}"
+
+        escaped_value="$(escape_sed_replacement "$value")"
+
+        printf 's|{{ %s }}|%s|g\n' \
+            "$key" \
+            "$escaped_value"
+
+        printf 's|{{ %s_strip }}|%s|g\n' \
+            "$key" \
+            "$(escape_sed_replacement "${value#\#}")"
+
+        if [[ $value =~ ^#[0-9A-Fa-f]{6}$ ]]; then
+            rgb="$(hex_to_rgb "$value")"
+
+            printf 's|{{ %s_rgb }}|%s|g\n' \
+                "$key" \
+                "$rgb"
+        fi
+    fi
+done < "$COLORS_FILE" > "$sed_script"
+
+shopt -s nullglob
+
+# Built-in templates first.
+for tpl in "$TEMPLATES_DIR"/*.tpl; do
+    filename="$(basename "$tpl" .tpl)"
+    sed -f "$sed_script" "$tpl" > "$NEXT_THEME_DIR/$filename"
+done
+
+# User templates overwrite built-in templates.
+for tpl in "$USER_TEMPLATES_DIR"/*.tpl; do
+    filename="$(basename "$tpl" .tpl)"
+    sed -f "$sed_script" "$tpl" > "$NEXT_THEME_DIR/$filename"
+done
