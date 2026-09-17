@@ -32,6 +32,7 @@ in
     kitty
     neovim 
     quickshell
+    tree-sitter
     tmux 
     zathura 
   ];
