@@ -11,6 +11,7 @@ configs = {
   hypr = "hypr";
   kitty = "kitty";
   nvim = "nvim";
+  quickshell = "quickshell";
   starship = "starship";
   tmux = "tmux";
   zathura = "zathura";
@@ -29,9 +30,10 @@ in
 
   home.packages = with pkgs; [
     kitty
-      tmux 
-      zathura 
-      neovim 
+    neovim 
+    quickshell
+    tmux 
+    zathura 
   ];
 
   home.sessionVariables = {
