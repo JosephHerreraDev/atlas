@@ -11,6 +11,8 @@ import "../shared/"
 Pill {
   id: root
 
+  borderEnabled: false
+
   property var shellScreen
   property var hyprMonitor: shellScreen ? Hyprland.monitorFor(shellScreen) : null
 
@@ -23,6 +25,21 @@ Pill {
     anchors.centerIn: parent
     spacing: 1
 
+    Button {
+      id: menuButton
+
+      Layout.preferredWidth: 24
+      Layout.preferredHeight: 20
+
+      IconImage {
+        anchors.centerIn: parent
+
+        implicitWidth: 14
+        implicitHeight: 14
+        source: Qt.resolvedUrl("../assets/nix-snowflake.svg")
+      }
+    }
+
     Repeater {
       model: Hyprland.workspaces
 
@@ -33,24 +50,24 @@ Pill {
         property var workspace: modelData
 
         visible: workspace.id > 0
-          && root.hyprMonitor !== null
-          && workspace.monitor !== null
-          && workspace.monitor.name === root.hyprMonitor.name
+        && root.hyprMonitor !== null
+        && workspace.monitor !== null
+        && workspace.monitor.name === root.hyprMonitor.name
 
         Layout.preferredWidth: content.implicitWidth + 12
         Layout.preferredHeight: 20
 
         buttonColor: workspace.focused
-          ? Theme.color2
-          : workspace.active
-            ? Theme.color1
-            : Theme.color0
+        ? Theme.color2
+        : workspace.active
+        ? Theme.color1
+        : Theme.color0
 
         buttonBorderColor: workspace.focused
-          ? Theme.color8
-          : workspace.active
-            ? Theme.color10
-            : Theme.color0
+        ? Theme.color8
+        : workspace.active
+        ? Theme.color10
+        : Theme.color0
 
         onClicked: workspaceButton.workspace.activate()
 
@@ -65,12 +82,12 @@ Pill {
 
             font.pixelSize: 12
             font.weight: workspaceButton.workspace.focused
-              ? Font.DemiBold
-              : Font.Medium
+            ? Font.DemiBold
+            : Font.Medium
 
             color: workspaceButton.workspace.focused
-              ? Theme.color6
-              : Theme.color4
+            ? Theme.color6
+            : Theme.color4
           }
         }
       }

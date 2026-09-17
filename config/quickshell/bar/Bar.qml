@@ -11,7 +11,7 @@ Scope {
     model: Quickshell.screens
 
     PanelWindow {
-      readonly property int screenGap: 4
+      readonly property int screenGap: 2
       readonly property int barHeight: 30
 
       color: "#00000000"
@@ -55,8 +55,16 @@ Scope {
             verticalCenter: parent.verticalCenter
           }
         }
-      }
 
+        System {
+          id: system
+
+          anchors {
+            right: parent.right
+            verticalCenter: parent.verticalCenter
+          }
+        }
+      }
     }
   }
 }

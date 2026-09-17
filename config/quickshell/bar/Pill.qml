@@ -5,6 +5,7 @@ Item {
   id: wrapper
 
   property real margin: 2
+  property bool borderEnabled: true
   required default property Item child
 
   implicitWidth: child.implicitWidth + margin * 2
@@ -17,6 +18,8 @@ Item {
 
     color: Theme.color0
     radius: 4
+    border.color: Theme.color9
+    border.width: wrapper.borderEnabled ? 1 : 0
 
     Item {
       anchors.fill: parent
