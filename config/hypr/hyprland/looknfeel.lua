@@ -1,41 +1,41 @@
 hl.config({
-    general = {
-        gaps_in  = 5,
-        gaps_out = 10,
+  general = {
+    gaps_in  = 5,
+    gaps_out = 10,
 
-        border_size = 1,
-        resize_on_border = false,
+    border_size = 1,
+    resize_on_border = false,
 
-        allow_tearing = false,
+    allow_tearing = false,
 
-        layout = "dwindle",
+    layout = "dwindle",
+  },
+
+  decoration = {
+    rounding       = 4,
+    rounding_power = 2,
+
+    active_opacity   = 1.0,
+    inactive_opacity = 1.0,
+
+    shadow = {
+      enabled      = true,
+      range        = 4,
+      render_power = 3,
+      color        = 0xee1a1a1a,
     },
 
-    decoration = {
-        rounding       = 8,
-        rounding_power = 2,
-
-        active_opacity   = 1.0,
-        inactive_opacity = 1.0,
-
-        shadow = {
-            enabled      = true,
-            range        = 4,
-            render_power = 3,
-            color        = 0xee1a1a1a,
-        },
-
-        blur = {
-            enabled   = true,
-            size      = 3,
-            passes    = 1,
-            vibrancy  = 0.1696,
-        },
+    blur = {
+      enabled   = true,
+      size      = 3,
+      passes    = 1,
+      vibrancy  = 0.1696,
     },
+  },
 
-    animations = {
-        enabled = true,
-    },
+  animations = {
+    enabled = true,
+  },
 })
 
 hl.curve("easeOutQuint",   { type = "bezier", points = { {0.23, 1},    {0.32, 1}    } })
@@ -66,27 +66,27 @@ hl.animation({ leaf = "zoomFactor",    enabled = true,  speed = 7,    bezier = "
 
 
 hl.config({
-    dwindle = {
-        preserve_split = true, -- You probably want this
-    },
+  dwindle = {
+    preserve_split = true,
+  },
 })
 
 hl.config({
-    master = {
-        new_status = "master",
-    },
+  master = {
+    new_status = "master",
+  },
 })
 
 hl.config({
-    scrolling = {
-        fullscreen_on_one_column = true,
-    },
+  scrolling = {
+    fullscreen_on_one_column = true,
+  },
 })
 
 hl.config({
-    misc = {
-        force_default_wallpaper = 0,
-        disable_hyprland_logo   = true,
-    },
+  misc = {
+    force_default_wallpaper = 0,
+    disable_hyprland_logo   = true,
+  },
 })
 
