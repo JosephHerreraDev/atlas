@@ -34,15 +34,29 @@ Scope {
       implicitHeight: barHeight
       exclusiveZone: screenGap + barHeight - (10)
 
-      ClockWidget {
-        id: clock
+      Item {
+        anchors.fill: parent
 
-        anchors {
-          horizontalCenter: parent.horizontalCenter
-          verticalCenter: parent.verticalCenter
+        Workspaces{
+          id: workspaces
+          shellScreen: modelData
+
+          anchors {
+            left: parent.left
+            verticalCenter: parent.verticalCenter
+          }
+        }
+
+        ClockWidget {
+          id: clock
+
+          anchors {
+            horizontalCenter: parent.horizontalCenter
+            verticalCenter: parent.verticalCenter
+          }
         }
       }
+
     }
   }
 }
-

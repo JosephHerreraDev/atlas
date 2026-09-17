@@ -14,9 +14,14 @@ Rectangle {
     : Theme.color0
 
   property int buttonBorderWidth: 1
+  property real horizontalPadding: 6
+  property real verticalPadding: 2
 
   readonly property bool hovered: mouseArea.containsMouse
   readonly property bool pressed: mouseArea.pressed
+  readonly property Item contentItem: contentHost.children.length > 0
+    ? contentHost.children[0]
+    : null
 
   default property alias content: contentHost.data
 
@@ -24,7 +29,10 @@ Rectangle {
   signal middleClicked()
   signal wheelMoved(bool up)
 
-  radius: 6
+  implicitWidth: (contentItem ? contentItem.implicitWidth : 0) + horizontalPadding * 2
+  implicitHeight: (contentItem ? contentItem.implicitHeight : 0) + verticalPadding * 2
+
+  radius: 4
 
   color: buttonColor
   border.width: buttonBorderWidth

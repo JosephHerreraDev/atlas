@@ -1,15 +1,18 @@
 import QtQuick
 import "../"
+import "../shared/"
 
 Pill {
-  implicitWidth: clockText.implicitWidth + 16
-  implicitHeight: clockText.implicitHeight + 8
+  Button {
+    implicitHeight: 20
 
-  Text {
-    id: clockText
-    anchors.centerIn: parent
+    Text {
+      id: clockText
 
-    text: Time.time
-    color: Theme.foreground
+      anchors.centerIn: parent
+
+      text: Time.time
+      color: Theme.foreground
+    }
   }
 }
