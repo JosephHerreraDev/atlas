@@ -1,0 +1,48 @@
+import Quickshell
+import QtQuick
+import QtQuick.Layouts
+
+Scope {
+  id: root
+
+  property QtObject systemState
+
+  Variants {
+    model: Quickshell.screens
+
+    PanelWindow {
+      readonly property int screenGap: 4
+      readonly property int barHeight: 30
+
+      color: "#00000000"
+
+      required property var modelData
+      screen: modelData
+
+      anchors {
+        top: true
+        left: true
+        right: true
+      }
+
+      margins {
+        top: screenGap
+        left: 10
+        right: 10
+      }
+
+      implicitHeight: barHeight
+      exclusiveZone: screenGap + barHeight - (10)
+
+      ClockWidget {
+        id: clock
+
+        anchors {
+          horizontalCenter: parent.horizontalCenter
+          verticalCenter: parent.verticalCenter
+        }
+      }
+    }
+  }
+}
+
