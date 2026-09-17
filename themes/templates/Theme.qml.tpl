@@ -1,8 +1,9 @@
 pragma Singleton
 
 import QtQuick
+import Quickshell
 
-QtObject {
+Singleton {
   readonly property color background: "{{ background }}"
   readonly property color foreground: "{{ foreground }}"
   readonly property color accent: "{{ accent }}"
