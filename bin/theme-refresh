@@ -6,7 +6,7 @@ set -euo pipefail
 pkill -x hyprpaper || true
 
 while pgrep -x hyprpaper >/dev/null; do
-    sleep 0.05
+  sleep 0.05
 done
 
 hyprpaper >/dev/null 2>&1 &
@@ -16,5 +16,9 @@ hyprctl reload >/dev/null
 
 # Reload Kitty config
 if pgrep -x kitty >/dev/null; then
-    killall -SIGUSR1 kitty >/dev/null
+  killall -SIGUSR1 kitty >/dev/null
+fi
+
+if pgrep -x tmux; then
+  tmux source-file ~/.config/tmux/tmux.conf
 fi
