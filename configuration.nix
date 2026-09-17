@@ -28,7 +28,7 @@
 
   users.users.joe = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" ];
+    extraGroups = [ "wheel" "networkmanager" "video" ];
     packages = with pkgs; [
       tree
     ];
@@ -48,6 +48,8 @@
     vim
     fastfetch
     spotify
+    brightnessctl
+    playerctl
     wget
   ];
 
@@ -55,4 +57,3 @@
 
   system.stateVersion = "26.05";
 }
-
