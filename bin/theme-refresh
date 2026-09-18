@@ -15,9 +15,12 @@ hyprpaper >/dev/null 2>&1 &
 hyprctl reload >/dev/null
 
 # Reload Kitty config
-if pgrep -x kitty >/dev/null; then
-  killall -SIGUSR1 kitty >/dev/null
-fi
+# Nix may wrap Kitty, so its process name is not always exactly "kitty" even
+# though the command line is. Match only command lines whose executable is kitty.
+mapfile -t kitty_pids < <(pgrep -f '(^|/)kitty( |$)' || true)
+for kitty_pid in "${kitty_pids[@]}"; do
+  kill -USR1 "$kitty_pid" 2>/dev/null || true
+done
 
 if pgrep -x tmux; then
   tmux source-file ~/.config/tmux/tmux.conf
