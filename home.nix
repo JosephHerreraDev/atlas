@@ -41,7 +41,6 @@ in
 
   home.sessionVariables = {
     ATLAS_PATH = atlasPath;
-    TZ = "America/Mexico_City";
   };
 
   home.sessionPath = [
