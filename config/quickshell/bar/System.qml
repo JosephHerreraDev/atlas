@@ -7,6 +7,9 @@ import "../shared/"
 Pill {
   RowLayout {
     spacing: 0
+    SystemTray{
+      id: systemTray
+    }
     SystemButton{
       id: systemButton 
     }
