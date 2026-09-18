@@ -2,10 +2,8 @@
 {
     "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
     "logo": {
-        "type": "small",
-        "padding": {
-            "top": 1
-        }
+        "type": "file-raw",
+        "source": "~/.config/fastfetch/globe.txt"
     },
     "display": {
         "separator": " "
@@ -51,22 +49,23 @@
         },
         {
             "key": "│ {#33}󰍛 cpu     {#keys}│",
-            "type": "cpu",
-            "showPeCoreCount": true
+            "type": "cpu"
         },
         {
             "key": "│ {#34}󰉉 disk    {#keys}│",
             "type": "disk",
-            "folders": "/"
+            "folders": "/",
+          "percent": {
+            "type": ["bar"]
+          }
         },
         {
             "key": "│ {#35} memory  {#keys}│",
-            "type": "memory"
-        },
-        {
-            "key": "│ {#36}󰩟 network {#keys}│",
-            "type": "localip",
-            "format": "{ipv4} ({ifname})"
+            "type": "memory",
+          "format": "",
+          "percent": {
+            "type": ["bar"]
+          }
         },
         {
             "key": "├───────────┤",
