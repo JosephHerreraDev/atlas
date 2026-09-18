@@ -29,6 +29,7 @@ in
   ];
 
   home.packages = with pkgs; [
+    cava
     kitty
     neovim 
     quickshell
@@ -39,6 +40,7 @@ in
 
   home.sessionVariables = {
     ATLAS_PATH = atlasPath;
+    TZ = "America/Mexico_City";
   };
 
   home.sessionPath = [

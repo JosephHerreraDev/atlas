@@ -13,6 +13,8 @@
   networking.hostName = "atlas";
   networking.networkmanager.enable = true;
 
+  services.upower.enable = true;
+
   time.timeZone = "America/Mexico_City";
 
   services.displayManager.sddm = {
