@@ -10,7 +10,7 @@ Pill {
       id: clockText
 
       anchors.centerIn: parent
-
+      font.bold: true
       text: Time.time
       color: Theme.foreground
     }
