@@ -28,6 +28,13 @@
     withUWSM = true; 
   };
 
+  hardware.bluetooth = {
+      enable = true;
+      powerOnBoot = true;
+    };
+
+  services.blueman.enable = true;
+
   users.users.joe = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" "video" ];
