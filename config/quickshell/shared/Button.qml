@@ -81,6 +81,7 @@ Rectangle {
     id: contentHost
 
     anchors.fill: parent
+    z: 1
   }
 
   MouseArea {
