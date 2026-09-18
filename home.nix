@@ -7,6 +7,7 @@ dotfiles = "${atlasPath}/config";
 create_symlink = path: config.lib.file.mkOutOfStoreSymlink path;
 
 configs = {
+  btop = "btop";
   fastfetch = "fastfetch";
   hypr = "hypr";
   kitty = "kitty";
