@@ -48,6 +48,7 @@
   environment.systemPackages = with pkgs; [
     hyprpaper
     quickshell
+    libnotify
     hyprlock
     yazi
     obsidian
