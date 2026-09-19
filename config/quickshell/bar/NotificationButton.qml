@@ -135,7 +135,14 @@ Button {
         color: Theme.color2
       }
 
-      Repeater {
+      ListView {
+        id: notificationList
+
+        Layout.fillWidth: true
+        Layout.preferredHeight: Math.min(contentHeight, 480)
+        clip: true
+        spacing: 10
+        boundsBehavior: Flickable.StopAtBounds
         model: notifications.history
 
         delegate: Rectangle {
@@ -147,8 +154,8 @@ Button {
           required property string appName
           required property string time
 
-          Layout.fillWidth: true
-          Layout.preferredHeight: cardColumn.implicitHeight + 16
+          width: notificationList.width
+          height: cardColumn.implicitHeight + 16
           radius: 4
           color: Theme.background
           border.width: 1
