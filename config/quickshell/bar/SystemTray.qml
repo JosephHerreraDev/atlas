@@ -12,6 +12,7 @@ Item {
 
   property var pinnedIds: []
   property bool panelVisible: false
+  required property Item popupAnchor
 
   readonly property int totalCount: TrayService.SystemTray.items.values.length
   readonly property int hiddenCount: {
@@ -177,73 +178,52 @@ Item {
     }
   }
 
-  PopupWindow {
+  RightPopup {
     id: trayPanel
 
-    anchor {
-      item: trayToggle
-      rect.x: Math.round(trayToggle.width / 2)
-      rect.y: trayToggle.height + 8
-      rect.width: 1
-      rect.height: 1
-      edges: Edges.Top
-      gravity: Edges.Bottom
-    }
-
+    anchorItem: root.popupAnchor
     implicitWidth: 294
-    implicitHeight: panelColumn.implicitHeight + 20
     visible: root.panelVisible && root.hiddenCount > 0
-    color: "transparent"
-    grabFocus: true
 
     onVisibleChanged: {
       if (!visible && root.panelVisible)
         root.panelVisible = false
     }
 
-    Rectangle {
-      anchors.fill: parent
-      color: Theme.color0
-      border.color: Theme.color8
-      border.width: 1
-      radius: 6
+    Column {
+      id: panelColumn
 
-      Column {
-        id: panelColumn
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: parent.top
+      spacing: 6
 
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 10
-        spacing: 6
+      Item {
+        width: parent.width
+        height: 20
 
-        Item {
-          width: parent.width
-          height: 20
-
-          Text {
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            text: "TRAY APPS"
-            color: Theme.foreground
-            font.pixelSize: 11
-            font.bold: true
-            font.letterSpacing: 1
-          }
-
+        Text {
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          text: "TRAY APPS"
+          color: Theme.foreground
+          font.pixelSize: 11
+          font.bold: true
+          font.letterSpacing: 1
         }
+      }
 
-        Rectangle {
-          width: parent.width
-          height: 1
-          color: Theme.color2
-        }
+      Rectangle {
+        width: parent.width
+        height: 1
+        color: Theme.color2
+      }
 
-        Repeater {
-          model: TrayService.SystemTray.items
+      Repeater {
+        model: TrayService.SystemTray.items
 
-          delegate: Item {
-            id: appRow
+        delegate: Item {
+          id: appRow
 
             required property var modelData
 
@@ -363,7 +343,6 @@ Item {
               anchor.rect.y: menuButton.height
               menu: appRow.modelData.menu
             }
-          }
         }
       }
     }

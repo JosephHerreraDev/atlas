@@ -6,6 +6,7 @@ Scope {
   id: root
 
   property QtObject systemState
+  required property var notifications
 
   Variants {
     model: Quickshell.screens
@@ -58,6 +59,8 @@ Scope {
 
         System {
           id: system
+          notifications: root.notifications
+          shellScreen: modelData
 
           anchors {
             right: parent.right

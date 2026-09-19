@@ -5,16 +5,24 @@ import "../"
 import "../shared/"
 
 Pill {
+  id: root
+
+  required property var notifications
+  required property var shellScreen
+
   RowLayout {
     spacing: 0
     SystemTray{
       id: systemTray
+      popupAnchor: root
     }
     SystemButton{
       id: systemButton 
     }
     NotificationButton{
       id: notifcationButton
+      notifications: root.notifications
+      shellScreen: root.shellScreen
     }
   }
 }
