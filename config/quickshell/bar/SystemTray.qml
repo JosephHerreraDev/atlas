@@ -236,11 +236,7 @@ Item {
               anchors.left: parent.left
               width: 142
               height: parent.height
-              radius: 4
-              color: appMouse.containsMouse ? Theme.color1 : "transparent"
-              border.color: appRow.modelData.status === TrayService.Status.NeedsAttention
-                ? Theme.color13 : Theme.color2
-              border.width: 1
+              color: "transparent"
 
               IconImage {
                 id: appIcon
@@ -262,20 +258,6 @@ Item {
                   ? Theme.color13 : Theme.foreground
                 font.pixelSize: 11
                 elide: Text.ElideRight
-              }
-
-              MouseArea {
-                id: appMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                  root.panelVisible = false
-                  if (appRow.modelData.onlyMenu)
-                    appMenu.open()
-                  else
-                    appRow.modelData.activate()
-                }
               }
             }
 
