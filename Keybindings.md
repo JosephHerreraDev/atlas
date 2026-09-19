@@ -28,6 +28,7 @@
 | --------------------- | -------------------------------- |
 | `SUPER + SPACE`       | App launcher                     |
 | `SUPER + T`           | Theme selector                   |
+| `SUPER + A`           | Notification Center              |
 | `SUPER + W`           | Wallpaper selector               |
 | `SUPER + ALT + W`     | Current theme wallpaper selector |
 | `PRINT`               | Screenshot menu                  |
