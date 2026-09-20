@@ -471,7 +471,7 @@ Item {
 
         RowLayout {
           width: parent.width
-          height: root.controlHeight
+          height: 32
           spacing: root.spaceSm
 
           Text {
@@ -483,7 +483,7 @@ Item {
           }
 
           Button {
-            Layout.preferredWidth: 64
+            Layout.preferredWidth: 84
             Layout.preferredHeight: root.controlHeight
             enabled: root.hasNotifications
             buttonBorderColor: hovered ? Theme.color11 : Theme.color2
@@ -494,6 +494,25 @@ Item {
               text: "Clear all"
               color: parent.enabled ? Theme.color11 : Theme.color2
               font.pixelSize: root.captionFontSize
+            }
+          }
+        }
+
+        RowLayout {
+          width: parent.width
+          height: root.controlHeight
+          spacing: root.spaceSm
+
+          Text {
+            Layout.fillWidth: true
+            text: "Do not disturb"
+            color: Theme.foreground
+            font.pixelSize: root.bodyFontSize
+          }
+          Toggle {
+            checked: notifications.doNotDisturb
+            onToggled: function(checked) {
+              notifications.doNotDisturb = checked
             }
           }
         }

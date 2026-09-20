@@ -10,6 +10,7 @@ import "../shared/"
 Scope {
   id: root
   property alias history: history
+  property bool doNotDisturb: false
 
   ListModel {
     id: history
@@ -30,7 +31,7 @@ Scope {
         urgency: n.urgency,
         time: Qt.formatDateTime(new Date(), "HH:mm")
       })
-      n.tracked = true
+      n.tracked = !root.doNotDisturb
     }
   }
 
