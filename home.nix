@@ -50,6 +50,10 @@ in
   programs.bash = {
     enable = true;
 
+    initExtra = ''
+      fastfetch
+    '';
+
     shellAliases = {
       nrs = "sudo nixos-rebuild switch --impure --flake ~/.local/share/atlas#atlas";
     };
