@@ -21,7 +21,7 @@ hl.window_rule({
 
 hl.layer_rule({
     name  = "blur-powermenu",
-    match = { namespace = "^prometheus-powermenu$" },
+    match = { namespace = "^powermenu$" },
 
     blur = true,
 })
