@@ -183,7 +183,7 @@ Item {
 
     anchorItem: root.popupAnchor
     implicitWidth: 294
-    visible: root.panelVisible && root.hiddenCount > 0
+    shown: root.panelVisible && root.hiddenCount > 0
 
     onVisibleChanged: {
       if (!visible && root.panelVisible)

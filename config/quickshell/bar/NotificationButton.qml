@@ -77,7 +77,7 @@ Button {
 
     anchorItem: notificationButton
     implicitWidth: 380
-    visible: notificationButton.centerOpen && notificationButton.hasNotifications
+    shown: notificationButton.centerOpen && notificationButton.hasNotifications
 
     onVisibleChanged: {
       if (!visible && notificationButton.centerOpen)

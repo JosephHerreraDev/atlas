@@ -17,7 +17,7 @@ Rectangle {
   property real horizontalPadding: 6
   property real verticalPadding: 2
 
-  readonly property bool hovered: mouseArea.containsMouse
+  readonly property bool hovered: hoverHandler.hovered
   readonly property bool pressed: mouseArea.pressed
   readonly property Item contentItem: contentHost.children.length > 0
     ? contentHost.children[0]
@@ -84,12 +84,16 @@ Rectangle {
     z: 1
   }
 
+  HoverHandler {
+    id: hoverHandler
+
+    cursorShape: Qt.PointingHandCursor
+  }
+
   MouseArea {
     id: mouseArea
 
     anchors.fill: parent
-    hoverEnabled: true
-    cursorShape: Qt.PointingHandCursor
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton
 
     onClicked: function(mouse) {

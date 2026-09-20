@@ -17,7 +17,8 @@ Pill {
       popupAnchor: root
     }
     SystemButton{
-      id: systemButton 
+      id: systemButton
+      popupAnchor: root
     }
     NotificationButton{
       id: notifcationButton
