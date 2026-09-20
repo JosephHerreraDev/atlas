@@ -74,6 +74,14 @@
     spotify
     brightnessctl
     playerctl
+    mpv
+    grim
+    slurp
+    wl-clipboard
+    jq
+    hyprshot
+    hyprpicker
+    wf-recorder
     wget
   ];
 
