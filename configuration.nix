@@ -17,6 +17,18 @@
 
   time.timeZone = "America/Mexico_City";
 
+  fonts = {
+    packages = with pkgs; [
+      nerd-fonts.caskaydia-cove
+    ];
+
+    fontconfig.defaultFonts = {
+      monospace = [ "CaskaydiaCove Nerd Font Mono" ];
+      sansSerif = [ "CaskaydiaCove Nerd Font" ];
+      serif = [ "CaskaydiaCove Nerd Font" ];
+    };
+  };
+
   services.displayManager.sddm = {
     enable = true;
     wayland.enable = false;
@@ -27,6 +39,8 @@
     xwayland.enable = true;
     withUWSM = true; 
   };
+
+  programs.dconf.enable = true;
 
   hardware.bluetooth = {
       enable = true;
