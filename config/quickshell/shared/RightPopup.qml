@@ -1,4 +1,5 @@
 import Quickshell
+import Quickshell.Hyprland
 import QtQuick
 import ".."
 
@@ -9,6 +10,11 @@ PopupWindow {
   property real gap: 8
   property real padding: 10
   property bool shown: false
+  property real slideOffset: 0
+  property bool presentationVisible: false
+
+  readonly property bool shouldShow: root.shown
+    && RightPopupState.activePopup === root
 
   readonly property Item contentItem: contentHost.children.length > 0
     ? contentHost.children[0]
@@ -27,9 +33,9 @@ PopupWindow {
   }
 
   implicitHeight: (contentItem ? contentItem.implicitHeight : 0) + root.padding * 2
-  visible: root.shown && RightPopupState.activePopup === root
+  visible: root.presentationVisible
   color: "transparent"
-  grabFocus: true
+  grabFocus: false
 
   onShownChanged: {
     if (shown)
@@ -38,12 +44,73 @@ PopupWindow {
       RightPopupState.activePopup = null
   }
 
+  onShouldShowChanged: {
+    if (shouldShow) {
+      closeAnimation.stop()
+      presentationVisible = true
+      slideOffset = -12
+      openAnimation.restart()
+    } else if (presentationVisible) {
+      openAnimation.stop()
+      closeAnimation.restart()
+    }
+  }
+
+  HyprlandFocusGrab {
+    windows: [root]
+    active: root.shouldShow
+
+    onCleared: {
+      if (RightPopupState.activePopup === root)
+        RightPopupState.activePopup = null
+    }
+  }
+
+  Shortcut {
+    sequence: "Escape"
+    context: Qt.WindowShortcut
+    enabled: root.shouldShow
+
+    onActivated: {
+      if (RightPopupState.activePopup === root)
+        RightPopupState.activePopup = null
+    }
+  }
+
+  NumberAnimation {
+    id: openAnimation
+
+    target: root
+    property: "slideOffset"
+    to: 0
+    duration: 160
+    easing.type: Easing.OutCubic
+  }
+
+  NumberAnimation {
+    id: closeAnimation
+
+    target: root
+    property: "slideOffset"
+    to: -12
+    duration: 140
+    easing.type: Easing.InCubic
+
+    onFinished: {
+      if (!root.shouldShow)
+        root.presentationVisible = false
+    }
+  }
+
   Rectangle {
     anchors.fill: parent
     color: Theme.color0
     border.color: Theme.foreground
     border.width: 1
     radius: 6
+    transform: Translate {
+      y: root.slideOffset
+    }
 
     Item {
       id: contentHost
