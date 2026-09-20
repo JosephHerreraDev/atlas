@@ -145,11 +145,11 @@ Item {
       anchors.centerIn: parent
       spacing: 4
 
-      Volume {
-        id: volume
+      Internet {
+        id: internet
 
         HoverHandler {
-          id: volumeHoverHandler
+          id: internetHoverHandler
         }
       }
       Bluetooth {
@@ -157,13 +157,6 @@ Item {
 
         HoverHandler {
           id: bluetoothHoverHandler
-        }
-      }
-      Internet {
-        id: internet
-
-        HoverHandler {
-          id: internetHoverHandler
         }
       }
       Battery {
@@ -206,12 +199,6 @@ Item {
           id: notificationHoverHandler
         }
       }
-    }
-
-    Tooltip {
-      target: volume
-      text: Math.round(volume.volume * 100) + "%"
-      shown: volumeHoverHandler.hovered
     }
 
     Tooltip {
@@ -417,7 +404,9 @@ Item {
           width: parent.width
           spacing: root.spaceSm
 
-          Volume {}
+          Volume {
+            id: volume
+          }
 
           Slider {
             Layout.fillWidth: true
@@ -459,7 +448,10 @@ Item {
             Layout.fillWidth: true
             from: 0.01
             value: brightness.brightness
-            onMoved: function(value) { brightness.setBrightness(value) }
+            onMoved: function(value) {
+              brightness.setBrightness(value)
+              OsdState.show("brightness", value)
+            }
           }
         }
 
