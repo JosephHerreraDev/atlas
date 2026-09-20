@@ -241,7 +241,7 @@ Item {
     }
   }
 
-  RightPopup {
+  Popup {
     id: systemPanel
 
     anchorItem: root.popupAnchor

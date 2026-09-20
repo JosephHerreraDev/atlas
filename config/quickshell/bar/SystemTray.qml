@@ -205,7 +205,7 @@ Item {
     }
   }
 
-  RightPopup {
+  Popup {
     id: trayPanel
 
     anchorItem: root.popupAnchor

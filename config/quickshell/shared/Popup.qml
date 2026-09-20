@@ -14,7 +14,7 @@ PopupWindow {
   property bool presentationVisible: false
 
   readonly property bool shouldShow: root.shown
-    && RightPopupState.activePopup === root
+    && PopupState.activePopup === root
 
   readonly property Item contentItem: contentHost.children.length > 0
     ? contentHost.children[0]
@@ -39,9 +39,9 @@ PopupWindow {
 
   onShownChanged: {
     if (shown)
-      RightPopupState.activePopup = root
-    else if (RightPopupState.activePopup === root)
-      RightPopupState.activePopup = null
+      PopupState.activePopup = root
+    else if (PopupState.activePopup === root)
+      PopupState.activePopup = null
   }
 
   onShouldShowChanged: {
@@ -61,8 +61,8 @@ PopupWindow {
     active: root.shouldShow
 
     onCleared: {
-      if (RightPopupState.activePopup === root)
-        RightPopupState.activePopup = null
+      if (PopupState.activePopup === root)
+        PopupState.activePopup = null
     }
   }
 
@@ -72,8 +72,8 @@ PopupWindow {
     enabled: root.shouldShow
 
     onActivated: {
-      if (RightPopupState.activePopup === root)
-        RightPopupState.activePopup = null
+      if (PopupState.activePopup === root)
+        PopupState.activePopup = null
     }
   }
 
@@ -120,3 +120,4 @@ PopupWindow {
     }
   }
 }
+
