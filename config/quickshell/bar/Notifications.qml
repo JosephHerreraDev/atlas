@@ -1,6 +1,5 @@
 import Quickshell
 import Quickshell.Hyprland
-import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Notifications
 import QtQuick
@@ -11,10 +10,6 @@ import "../shared/"
 Scope {
   id: root
   property alias history: history
-
-  signal toggleRequested()
-  signal showRequested()
-  signal hideRequested()
 
   ListModel {
     id: history
@@ -37,13 +32,6 @@ Scope {
       })
       n.tracked = true
     }
-  }
-
-  IpcHandler {
-    target: "notifications"
-    function toggle(): void {root.toggleRequested()}
-    function show(): void {root.showRequested()}
-    function hide(): void {root.hideRequested()}
   }
 
   Variants {

@@ -1,4 +1,6 @@
 import Quickshell
+import Quickshell.Hyprland
+import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 
@@ -7,6 +9,15 @@ Scope {
 
   property QtObject systemState
   required property var notifications
+  signal systemTrayToggleRequested()
+
+  IpcHandler {
+    target: "system-tray"
+
+    function toggle(): void {
+      root.systemTrayToggleRequested()
+    }
+  }
 
   Variants {
     model: Quickshell.screens
@@ -60,11 +71,19 @@ Scope {
         System {
           id: system
           notifications: root.notifications
-          shellScreen: modelData
 
           anchors {
             right: parent.right
             verticalCenter: parent.verticalCenter
+          }
+        }
+
+        Connections {
+          target: root
+
+          function onSystemTrayToggleRequested(): void {
+            if (Hyprland.monitorFor(modelData) === Hyprland.focusedMonitor)
+              system.togglePanel()
           }
         }
       }

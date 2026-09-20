@@ -8,7 +8,10 @@ Pill {
   id: root
 
   required property var notifications
-  required property var shellScreen
+
+  function togglePanel(): void {
+    systemButton.panelVisible = !systemButton.panelVisible
+  }
 
   RowLayout {
     spacing: 0
@@ -19,11 +22,7 @@ Pill {
     SystemButton{
       id: systemButton
       popupAnchor: root
-    }
-    NotificationButton{
-      id: notifcationButton
       notifications: root.notifications
-      shellScreen: root.shellScreen
     }
   }
 }

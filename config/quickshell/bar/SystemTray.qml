@@ -13,6 +13,17 @@ Item {
   property var pinnedIds: []
   property bool panelVisible: false
   required property Item popupAnchor
+  readonly property int spaceXs: 4
+  readonly property int spaceSm: 8
+  readonly property int spaceMd: 8
+  readonly property int spaceLg: 12
+  readonly property int controlHeight: 28
+  readonly property int listRowHeight: 34
+  readonly property int bodyFontSize: 12
+  readonly property int captionFontSize: 11
+  readonly property int titleFontSize: 14
+  readonly property int motionFast: 100
+  readonly property int motionNormal: 160
 
   readonly property int totalCount: TrayService.SystemTray.items.values.length
   readonly property int hiddenCount: {
@@ -71,6 +82,14 @@ Item {
         Layout.preferredWidth: visible ? 20 : 0
         Layout.preferredHeight: 20
         visible: root.isPinned(modelData)
+        scale: pinnedMouse.pressed ? 0.96 : 1
+
+        Behavior on scale {
+          NumberAnimation {
+            duration: root.motionFast
+            easing.type: Easing.OutCubic
+          }
+        }
 
         Rectangle {
           anchors.fill: parent
@@ -78,6 +97,10 @@ Item {
           color: pinnedMouse.containsMouse ? Theme.color1 : "transparent"
           border.width: pinnedEntry.modelData.status === TrayService.Status.NeedsAttention ? 1 : 0
           border.color: Theme.color13
+
+          Behavior on color {
+            ColorAnimation { duration: root.motionFast }
+          }
         }
 
         IconImage {
@@ -134,6 +157,10 @@ Item {
         color: toggleMouse.containsMouse || root.panelVisible ? Theme.color1 : "transparent"
         border.width: root.panelVisible ? 1 : 0
         border.color: Theme.color8
+
+        Behavior on color {
+          ColorAnimation { duration: root.motionFast }
+        }
       }
 
       IconImage {
@@ -146,7 +173,7 @@ Item {
 
         Behavior on rotation {
           NumberAnimation {
-            duration: 140
+            duration: root.motionNormal
             easing.type: Easing.OutCubic
           }
         }
@@ -182,7 +209,8 @@ Item {
     id: trayPanel
 
     anchorItem: root.popupAnchor
-    implicitWidth: 294
+    implicitWidth: 320
+    padding: root.spaceLg
     shown: root.panelVisible && root.hiddenCount > 0
 
     onVisibleChanged: {
@@ -196,20 +224,19 @@ Item {
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.top: parent.top
-      spacing: 6
+      spacing: root.spaceMd
 
       Item {
         width: parent.width
-        height: 20
+        height: 24
 
         Text {
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
-          text: "TRAY APPS"
+          text: "System tray"
           color: Theme.foreground
-          font.pixelSize: 11
-          font.bold: true
-          font.letterSpacing: 1
+          font.pixelSize: root.titleFontSize
+          font.weight: Font.DemiBold
         }
       }
 
@@ -225,106 +252,95 @@ Item {
         delegate: Item {
           id: appRow
 
-            required property var modelData
+          required property var modelData
 
-            width: panelColumn.width
-            height: visible ? 30 : 0
-            visible: !root.isPinned(modelData)
+          width: panelColumn.width
+          height: root.isPinned(modelData) ? 0 : root.listRowHeight
+          opacity: root.isPinned(modelData) ? 0 : 1
+          visible: opacity > 0
 
-            Rectangle {
-              id: appButton
-              anchors.left: parent.left
-              width: 142
-              height: parent.height
-              color: "transparent"
+          Behavior on height {
+            NumberAnimation {
+              duration: root.motionNormal
+              easing.type: Easing.OutCubic
+            }
+          }
+
+          Behavior on opacity {
+            NumberAnimation {
+              duration: root.motionFast
+              easing.type: Easing.OutCubic
+            }
+          }
+
+          RowLayout {
+            anchors.fill: parent
+            spacing: root.spaceSm
+
+            Item {
+              Layout.fillWidth: true
+              Layout.fillHeight: true
 
               IconImage {
                 id: appIcon
                 anchors.left: parent.left
-                anchors.leftMargin: 7
                 anchors.verticalCenter: parent.verticalCenter
-                implicitSize: 16
+                implicitSize: 18
                 source: appRow.modelData.icon
               }
 
               Text {
                 anchors.left: appIcon.right
-                anchors.leftMargin: 7
+                anchors.leftMargin: root.spaceMd
                 anchors.right: parent.right
-                anchors.rightMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
                 text: appRow.modelData.title || appRow.modelData.id
                 color: appRow.modelData.status === TrayService.Status.NeedsAttention
                   ? Theme.color13 : Theme.foreground
-                font.pixelSize: 11
+                font.pixelSize: root.bodyFontSize
                 elide: Text.ElideRight
               }
             }
 
-            Rectangle {
-              id: pinButton
-              anchors.left: appButton.right
-              anchors.leftMargin: 6
-              width: 58
-              height: parent.height
-              radius: 4
-              color: pinMouse.containsMouse ? Theme.color1 : "transparent"
-              border.color: pinMouse.containsMouse ? Theme.color8 : Theme.color2
-              border.width: 1
+            Button {
+              Layout.preferredWidth: 56
+              Layout.preferredHeight: root.controlHeight
+              buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+              onClicked: root.togglePinned(appRow.modelData)
 
               Text {
                 anchors.centerIn: parent
                 text: "Pin"
-                color: pinMouse.containsMouse ? Theme.color8 : Theme.foreground
-                font.pixelSize: 10
-              }
-
-              MouseArea {
-                id: pinMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.togglePinned(appRow.modelData)
+                color: parent.hovered ? Theme.color8 : Theme.foreground
+                font.pixelSize: root.captionFontSize
               }
             }
 
-            Rectangle {
+            Button {
               id: menuButton
-              anchors.left: pinButton.right
-              anchors.leftMargin: 6
-              width: 58
-              height: parent.height
-              radius: 4
-              color: menuMouse.containsMouse && appRow.modelData.hasMenu
-                ? Theme.color1 : "transparent"
-              border.color: menuMouse.containsMouse && appRow.modelData.hasMenu
-                ? Theme.color8 : Theme.color2
-              border.width: 1
-              opacity: appRow.modelData.hasMenu ? 1 : 0.4
+
+              Layout.preferredWidth: 56
+              Layout.preferredHeight: root.controlHeight
+              enabled: appRow.modelData.hasMenu
+              opacity: enabled ? 1 : 0.4
+              buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+              onClicked: appMenu.open()
 
               Text {
                 anchors.centerIn: parent
                 text: appRow.modelData.hasMenu ? "Menu" : "—"
                 color: Theme.foreground
-                font.pixelSize: 10
-              }
-
-              MouseArea {
-                id: menuMouse
-                anchors.fill: parent
-                enabled: appRow.modelData.hasMenu
-                hoverEnabled: enabled
-                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: appMenu.open()
+                font.pixelSize: root.captionFontSize
               }
             }
+          }
 
-            QsMenuAnchor {
-              id: appMenu
-              anchor.item: menuButton
-              anchor.rect.y: menuButton.height
-              menu: appRow.modelData.menu
-            }
+          QsMenuAnchor {
+            id: appMenu
+            anchor.item: menuButton
+            anchor.rect.y: menuButton.height
+            menu: appRow.modelData.menu
+          }
         }
       }
     }

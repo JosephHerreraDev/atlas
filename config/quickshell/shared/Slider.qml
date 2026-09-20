@@ -72,11 +72,13 @@ Item {
 
     onPressed: function(mouse) {
       previewValue = valueAt(mouse.x)
+      root.moved(previewValue)
     }
     onPositionChanged: function(mouse) {
-      if (pressed)
+      if (pressed) {
         previewValue = valueAt(mouse.x)
+        root.moved(previewValue)
+      }
     }
-    onReleased: root.moved(previewValue)
   }
 }
