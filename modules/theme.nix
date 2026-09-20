@@ -8,7 +8,7 @@
 
   gtk = {
     enable = true;
-    theme.name = "Adwaita";
+    theme.name = "Adwaita-dark";
     iconTheme.name = "Adwaita";
     cursorTheme = {
       name = "Adwaita";
@@ -19,7 +19,8 @@
 
   xdg.configFile."gtk-3.0/settings.ini".text = ''
     [Settings]
-    gtk-theme-name=Adwaita
+    gtk-theme-name=Adwaita-dark
+    gtk-application-prefer-dark-theme=1
     gtk-icon-theme-name=Adwaita
     gtk-cursor-theme-name=Adwaita
     gtk-cursor-theme-size=24
@@ -27,7 +28,8 @@
 
   xdg.configFile."gtk-4.0/settings.ini".text = ''
     [Settings]
-    gtk-theme-name=Adwaita
+    gtk-theme-name=Adwaita-dark
+    gtk-application-prefer-dark-theme=1
     gtk-icon-theme-name=Adwaita
     gtk-cursor-theme-name=Adwaita
     gtk-cursor-theme-size=24
@@ -37,5 +39,9 @@
     XCURSOR_THEME = "Adwaita";
     XCURSOR_SIZE = "24";
   };
-}
 
+  dconf.settings."org/gnome/desktop/interface" = {
+    color-scheme = "prefer-dark";
+    gtk-theme = "Adwaita-dark";
+  };
+}
