@@ -10,12 +10,21 @@ Scope {
   property QtObject systemState
   required property var notifications
   signal systemTrayToggleRequested()
+  signal screenshotMenuToggleRequested()
 
   IpcHandler {
     target: "system-tray"
 
     function toggle(): void {
       root.systemTrayToggleRequested()
+    }
+  }
+
+  IpcHandler {
+    target: "screenshot-menu"
+
+    function toggle(): void {
+      root.screenshotMenuToggleRequested()
     }
   }
 
@@ -84,6 +93,11 @@ Scope {
           function onSystemTrayToggleRequested(): void {
             if (Hyprland.monitorFor(modelData) === Hyprland.focusedMonitor)
               system.togglePanel()
+          }
+
+          function onScreenshotMenuToggleRequested(): void {
+            if (Hyprland.monitorFor(modelData) === Hyprland.focusedMonitor)
+              clock.toggleScreenshotMenu()
           }
         }
       }
