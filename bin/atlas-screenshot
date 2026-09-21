@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Quickshell may have started before a package was added to the active profile.
+export PATH="${HOME}/.nix-profile/bin:/etc/profiles/per-user/${USER}/bin:/run/current-system/sw/bin:${PATH}"
+
+mode="${1:-region}"
+screenshots_dir="${HOME}/Pictures/Screenshots"
+timestamp="$(date +'%Y-%m-%d_%H-%M-%S')"
+filename="Screenshot_${timestamp}.png"
+runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
+pid_file="${runtime_dir}/atlas-wf-recorder.pid"
+pause_file="${runtime_dir}/atlas-wf-recorder.paused"
+
+recording_pid() {
+  [[ -f "${pid_file}" ]] || return 1
+  local recorder_pid
+  recorder_pid="$(<"${pid_file}")"
+  [[ "${recorder_pid}" =~ ^[0-9]+$ ]] || return 1
+  kill -0 "${recorder_pid}" 2>/dev/null || return 1
+  [[ "$(ps -p "${recorder_pid}" -o comm=)" == "wf-recorder" ]] || return 1
+  printf '%s\n' "${recorder_pid}"
+}
+
+case "${mode}" in
+  status)
+    if recording_pid >/dev/null; then
+      if [[ -f "${pause_file}" ]]; then printf 'paused\n'; else printf 'recording\n'; fi
+    else
+      rm -f "${pid_file}" "${pause_file}"
+      printf 'stopped\n'
+    fi
+    exit 0
+    ;;
+  record-pause)
+    recorder_pid="$(recording_pid)" || exit 0
+    if [[ -f "${pause_file}" ]]; then
+      kill -CONT "${recorder_pid}"
+      rm -f "${pause_file}"
+    else
+      kill -STOP "${recorder_pid}"
+      : >"${pause_file}"
+    fi
+    exit 0
+    ;;
+  record-stop)
+    recorder_pid="$(recording_pid)" || exit 0
+    kill -CONT "${recorder_pid}" 2>/dev/null || true
+    kill -INT "${recorder_pid}"
+    rm -f "${pid_file}" "${pause_file}"
+    notify-send "Screen recording saved" "${HOME}/Videos/Recordings"
+    exit 0
+    ;;
+  record|record-region|record-window|record-display)
+    recordings_dir="${HOME}/Videos/Recordings"
+
+    recording_pid >/dev/null && exit 0
+    rm -f "${pid_file}" "${pause_file}"
+
+    case "${mode}" in
+      record|record-region)
+        geometry="$(slurp)" || exit 0
+        ;;
+      record-window)
+        geometry="$(hyprctl clients -j | jq -r '.[] | select(.mapped) | "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"' | slurp)" || exit 0
+        ;;
+      record-display)
+        geometry="$(slurp -o)" || exit 0
+        ;;
+    esac
+    [[ -n "${geometry}" ]] || exit 0
+    mkdir -p "${recordings_dir}"
+    recording_file="${recordings_dir}/Recording_${timestamp}.mp4"
+    recorder_log="${runtime_dir}/atlas-wf-recorder.log"
+    wf-recorder -g "${geometry}" -f "${recording_file}" >"${recorder_log}" 2>&1 &
+    recorder_pid=$!
+    printf '%s\n' "${recorder_pid}" >"${pid_file}"
+    notify-send "Screen recording started" "Press Print Screen and select Record again to stop"
+    exit 0
+    ;;
+  color)
+    exec hyprpicker -a -f hex
+    ;;
+  region)
+    hyprshot_mode="region"
+    ;;
+  display)
+    hyprshot_mode="output"
+    ;;
+  window)
+    hyprshot_mode="window"
+    ;;
+  *)
+    exit 2
+    ;;
+esac
+
+mkdir -p "${screenshots_dir}"
+exec hyprshot -m "${hyprshot_mode}" -o "${screenshots_dir}" -f "${filename}"

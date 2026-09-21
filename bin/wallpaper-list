@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+wallpapers_dir="${HOME}/Pictures/wallpapers"
+mode="${1:-general}"
+
+case "$mode" in
+  general)
+    search_dir="$wallpapers_dir/general"
+    ;;
+  theme)
+    theme_file="${HOME}/.config/style/current/theme"
+    [[ -f "$theme_file" ]] || exit 0
+    theme="$(<"$theme_file")"
+    search_dir="$wallpapers_dir/themes/$theme"
+    ;;
+  *)
+    echo "Usage: wallpaper-list [general|theme]" >&2
+    exit 2
+    ;;
+esac
+
+[[ -d "$search_dir" ]] || exit 0
+
+find "$search_dir" -type f \
+  \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) \
+  -print | sort

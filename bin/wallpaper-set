@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+wallpapers_dir="$(realpath "${HOME}/Pictures/wallpapers")"
+wallpaper="${1:-}"
+
+if [[ -z "$wallpaper" || ! -f "$wallpaper" ]]; then
+  echo "Wallpaper does not exist: $wallpaper" >&2
+  exit 1
+fi
+
+wallpaper="$(realpath "$wallpaper")"
+case "$wallpaper" in
+  "$wallpapers_dir"/*) ;;
+  *)
+    echo "Wallpaper is outside the wallpaper library: $wallpaper" >&2
+    exit 1
+    ;;
+esac
+
+style_dir="${HOME}/.config/style/current"
+mkdir -p "$style_dir"
+cp "$wallpaper" "$style_dir/background"
+theme-refresh
