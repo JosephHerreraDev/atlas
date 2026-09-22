@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
+THEMES_DIR="$ATLAS_PATH/themes"
+
+[[ -d "$THEMES_DIR" ]] || exit 0
+
+find "$THEMES_DIR" -maxdepth 1 -type f -name '*.toml' -printf '%f\n' \
+  | sed 's/\.toml$//' \
+  | sort

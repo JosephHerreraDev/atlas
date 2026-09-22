@@ -15,14 +15,9 @@ Scope {
   property string query: ""
   property int selectedIndex: -1
   property int focusRequest: 0
+  property var themes: []
 
   readonly property int animationDuration: 140
-  readonly property var themes: [
-    "catppuccin", "everforest", "ghost-pastel", "gotham-city", "gruvbox",
-    "gruvu", "inkypinky", "lumon", "matte-black", "miasma", "nord",
-    "osaka-jade", "retro-82", "ristretto", "saga", "solitude",
-    "tokyo-night", "van-gogh", "windows-dark-mode"
-  ]
   readonly property var themePalettes: ({
     "catppuccin": ["#f38ba8", "#a6e3a1", "#f9e2af", "#89b4fa", "#f5c2e7"],
     "everforest": ["#e67e80", "#a7c080", "#dbbc7f", "#7fbbb3", "#d699b6"],
@@ -31,14 +26,12 @@ Scope {
     "gruvbox": ["#ea6962", "#a9b665", "#d8a657", "#7daea3", "#d3869b"],
     "gruvu": ["#cc241d", "#b8bb26", "#d79921", "#83a598", "#d3869b"],
     "inkypinky": ["#ea90a8", "#a6b2c7", "#d18ba2", "#7c7ca8", "#9f859f"],
-    "lumon": ["#4d86b0", "#5e95bc", "#6fa4c9", "#6fb8e3", "#8bc9eb"],
     "matte-black": ["#d35f5f", "#ffc107", "#b91c1c", "#e68e0d", "#d35f5f"],
     "miasma": ["#685742", "#5f875f", "#b36d43", "#78824b", "#bb7744"],
     "nord": ["#bf616a", "#a3be8c", "#ebcb8b", "#81a1c1", "#b48ead"],
     "osaka-jade": ["#ff5345", "#549e6a", "#459451", "#509475", "#d2689c"],
     "retro-82": ["#f85525", "#028391", "#e97b3c", "#faa968", "#3f8f8a"],
     "ristretto": ["#fd6883", "#adda78", "#f9cc6c", "#f38d70", "#a8a9eb"],
-    "saga": ["#ff9fbc", "#baf7b5", "#fff6c3", "#b2fff3", "#dfbaff"],
     "solitude": ["#565d60", "#9fa5a9", "#d9dbdc", "#798186", "#aeaeae"],
     "tokyo-night": ["#f7768e", "#9ece6a", "#e0af68", "#7aa2f7", "#ad8ee6"],
     "van-gogh": ["#d9822b", "#7fb3d5", "#f2e2a4", "#4a78a8", "#d9822b"],
@@ -58,6 +51,7 @@ Scope {
     mounted = true
     opened = false
     query = ""
+    refresh()
     filter()
     Qt.callLater(function() {
       if (root.mounted) {
@@ -74,6 +68,11 @@ Scope {
   }
 
   function toggle(): void { opened ? close() : open() }
+
+  function refresh(): void {
+    if (!listProcess.running)
+      listProcess.exec(["theme-list"])
+  }
 
   function filter(): void {
     const needle = query.trim().toLowerCase()
@@ -100,6 +99,18 @@ Scope {
   }
 
   onQueryChanged: filter()
+
+  Process {
+    id: listProcess
+    stdout: StdioCollector {
+      onStreamFinished: {
+        root.themes = text.split("\n").filter(function(name) {
+          return name.length > 0
+        })
+        root.filter()
+      }
+    }
+  }
 
   IpcHandler {
     target: "theme"
