@@ -41,4 +41,4 @@ set recolor-darkcolor       "#d8dee9" # nord4
 set recolor-lightcolor      "#2e3440" # nord0
 set render-loading-bg       "#2e3440" # nord0
 set render-loading-fg       "#d8dee9" # nord4
-set font                    CaskaydiaCove Nerd Font
+set font                    FiraCode Nerd Font

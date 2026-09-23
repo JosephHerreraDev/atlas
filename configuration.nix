@@ -19,13 +19,14 @@
 
   fonts = {
     packages = with pkgs; [
-      nerd-fonts.caskaydia-cove
+      nerd-fonts.fira-code
+      noto-fonts
     ];
 
     fontconfig.defaultFonts = {
-      monospace = [ "CaskaydiaCove Nerd Font Mono" ];
-      sansSerif = [ "CaskaydiaCove Nerd Font" ];
-      serif = [ "CaskaydiaCove Nerd Font" ];
+      monospace = [ "FiraCode Nerd Font Mono" ];
+      sansSerif = [ "Noto Sans" ];
+      serif = [ "Noto Serif" ];
     };
   };
 
