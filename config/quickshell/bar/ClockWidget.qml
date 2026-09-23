@@ -15,10 +15,12 @@ Pill {
   readonly property int maximumImplicitHeight: Math.max(
     collapsedImplicitHeight,
     calendarMenu.implicitHeight + margin * 2,
+    clipboardMenu.implicitHeight + margin * 2,
     screenshotMenu.implicitHeight + margin * 2)
 
   property bool calendarVisible: false
   property bool screenshotMenuVisible: false
+  property bool clipboardVisible: false
   property bool recordingMenuVisible: false
   property bool recordingActive: false
   property bool recordingPaused: false
@@ -31,14 +33,32 @@ Pill {
   readonly property bool screenshotSurfaceShown: screenshotMenuVisible
     || recordingMenuVisible || recordingActive
   readonly property bool menuSurfaceShown: calendarVisible
-    || screenshotSurfaceShown
+    || screenshotSurfaceShown || clipboardVisible
   readonly property bool menuClosable: calendarVisible
-    || screenshotMenuVisible || recordingMenuVisible
+    || screenshotMenuVisible || recordingMenuVisible || clipboardVisible
+
+  function openClipboardMenu(): void {
+    calendarVisible = false
+    closeScreenshotMenu()
+    clipboardVisible = true
+    clipboardMenu.open()
+  }
+
+  function closeClipboardMenu(): void {
+    clipboardVisible = false
+    clipboardMenu.close()
+  }
+
+  function toggleClipboardMenu(): void {
+    if (clipboardVisible) closeClipboardMenu()
+    else openClipboardMenu()
+  }
 
   function toggleScreenshotMenu(): void {
     if (root.recordingActive)
       return
     root.calendarVisible = false
+    root.closeClipboardMenu()
     if (screenshotMenuVisible || recordingMenuVisible) {
       screenshotMenuVisible = false
       recordingMenuVisible = false
@@ -159,7 +179,7 @@ Pill {
       implicitHeight: root.menuSurfaceShown
         ? (root.calendarVisible
           ? calendarMenu.implicitHeight
-          : screenshotMenu.implicitHeight)
+          : (root.clipboardVisible ? clipboardMenu.implicitHeight : screenshotMenu.implicitHeight))
         : (OsdState.shown ? osd.implicitHeight : 20)
       buttonColor: root.menuSurfaceShown
         ? Theme.color0
@@ -167,7 +187,9 @@ Pill {
       buttonBorderColor: Theme.borderFocus
 
       onClicked: {
-        if (root.screenshotMenuVisible || root.recordingMenuVisible) {
+        if (root.clipboardVisible) {
+          root.closeClipboardMenu()
+        } else if (root.screenshotMenuVisible || root.recordingMenuVisible) {
           root.screenshotMenuVisible = false
           root.recordingMenuVisible = false
         } else if (!root.recordingActive) {
@@ -180,12 +202,12 @@ Pill {
         implicitWidth: root.menuSurfaceShown
           ? (root.calendarVisible
             ? calendarMenu.implicitWidth
-            : screenshotMenu.implicitWidth)
+            : (root.clipboardVisible ? clipboardMenu.implicitWidth : screenshotMenu.implicitWidth))
           : (OsdState.shown ? osd.implicitWidth : clockText.implicitWidth)
         implicitHeight: root.menuSurfaceShown
           ? (root.calendarVisible
             ? calendarMenu.implicitHeight
-            : screenshotMenu.implicitHeight)
+            : (root.clipboardVisible ? clipboardMenu.implicitHeight : screenshotMenu.implicitHeight))
           : (OsdState.shown ? osd.implicitHeight : 20)
 
         Behavior on implicitWidth {
@@ -253,6 +275,26 @@ Pill {
             }
           }
 
+          Behavior on scale {
+            NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
+          }
+        }
+
+        ClipboardHistoryMenu {
+          id: clipboardMenu
+          anchors.centerIn: parent
+          visible: opacity > 0
+          opacity: root.clipboardVisible ? 1 : 0
+          scale: root.clipboardVisible ? 1 : 0.92
+          clipboardVisible: root.clipboardVisible
+          onCloseRequested: root.closeClipboardMenu()
+
+          Behavior on opacity {
+            SequentialAnimation {
+              PauseAnimation { duration: root.clipboardVisible ? 30 : 0 }
+              NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
+            }
+          }
           Behavior on scale {
             NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
           }

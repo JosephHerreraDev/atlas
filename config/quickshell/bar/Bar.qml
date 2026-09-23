@@ -12,6 +12,7 @@ Scope {
   required property var notifications
   signal systemTrayToggleRequested()
   signal screenshotMenuToggleRequested()
+  signal clipboardMenuToggleRequested(var opened)
 
   IpcHandler {
     target: "system-tray"
@@ -27,6 +28,14 @@ Scope {
     function toggle(): void {
       root.screenshotMenuToggleRequested()
     }
+  }
+
+  IpcHandler {
+    target: "clipboard"
+
+    function open(): void { root.clipboardMenuToggleRequested(true) }
+    function close(): void { root.clipboardMenuToggleRequested(false) }
+    function toggle(): void { root.clipboardMenuToggleRequested(null) }
   }
 
   Variants {
@@ -52,9 +61,12 @@ Scope {
 
       HyprlandFocusGrab {
         windows: [window]
-        active: clock.calendarVisible
+        active: clock.calendarVisible || clock.clipboardVisible
 
-        onCleared: clock.calendarVisible = false
+        onCleared: {
+          clock.calendarVisible = false
+          clock.closeClipboardMenu()
+        }
       }
 
       anchors {
@@ -150,6 +162,17 @@ Scope {
           function onScreenshotMenuToggleRequested(): void {
             if (Hyprland.monitorFor(modelData) === Hyprland.focusedMonitor)
               clock.toggleScreenshotMenu()
+          }
+
+          function onClipboardMenuToggleRequested(opened): void {
+            if (Hyprland.monitorFor(modelData) !== Hyprland.focusedMonitor)
+              return
+            if (opened === true)
+              clock.openClipboardMenu()
+            else if (opened === false)
+              clock.closeClipboardMenu()
+            else
+              clock.toggleClipboardMenu()
           }
         }
       }

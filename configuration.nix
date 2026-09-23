@@ -79,6 +79,7 @@
     grim
     slurp
     wl-clipboard
+    cliphist
     jq
     hyprshot
     hyprpicker
