@@ -22,16 +22,26 @@ Pill {
   readonly property var audioSink: Pipewire.defaultAudioSink
   readonly property real volume: audioSink?.audio.volume ?? 0
   readonly property bool muted: audioSink?.audio.muted ?? false
+  readonly property bool screenshotSurfaceShown: screenshotMenuVisible
+    || recordingMenuVisible || recordingActive
+  readonly property bool screenshotMenuClosable: screenshotMenuVisible
+    || recordingMenuVisible
 
   function toggleScreenshotMenu(): void {
     if (root.recordingActive)
       return
+    root.calendarVisible = false
     if (screenshotMenuVisible || recordingMenuVisible) {
       screenshotMenuVisible = false
       recordingMenuVisible = false
     } else {
       screenshotMenuVisible = true
     }
+  }
+
+  function closeScreenshotMenu(): void {
+    screenshotMenuVisible = false
+    recordingMenuVisible = false
   }
 
   function showVolumeOsd() {
@@ -138,14 +148,14 @@ Pill {
     Button {
       id: clockButton
 
-      implicitHeight: root.screenshotMenuVisible || root.recordingMenuVisible
+      implicitHeight: root.screenshotSurfaceShown
         ? screenshotMenu.implicitHeight
-        : (root.recordingActive ? screenshotMenu.implicitHeight
-        : (OsdState.shown ? osd.implicitHeight : 20))
-      buttonColor: root.screenshotMenuVisible || root.recordingMenuVisible
+        : (OsdState.shown ? osd.implicitHeight : 20)
+      buttonColor: root.screenshotSurfaceShown
         ? Theme.color0
         : (hovered ? Theme.color1 : Theme.color0)
       buttonBorderColor: Theme.borderFocus
+
       onClicked: {
         if (root.screenshotMenuVisible || root.recordingMenuVisible) {
           root.screenshotMenuVisible = false
@@ -157,16 +167,21 @@ Pill {
 
       Item {
         anchors.centerIn: parent
-        implicitWidth: root.screenshotMenuVisible || root.recordingMenuVisible
+        implicitWidth: root.screenshotSurfaceShown
           ? screenshotMenu.implicitWidth
-          : (root.recordingActive ? screenshotMenu.implicitWidth
-          : (OsdState.shown ? osd.implicitWidth : clockText.implicitWidth))
-        implicitHeight: root.screenshotMenuVisible || root.recordingMenuVisible
+          : (OsdState.shown ? osd.implicitWidth : clockText.implicitWidth)
+        implicitHeight: root.screenshotSurfaceShown
           ? screenshotMenu.implicitHeight
-          : (root.recordingActive ? screenshotMenu.implicitHeight
-          : (OsdState.shown ? osd.implicitHeight : 20))
+          : (OsdState.shown ? osd.implicitHeight : 20)
 
         Behavior on implicitWidth {
+          NumberAnimation {
+            duration: Theme.motionNormal
+            easing.type: Easing.OutCubic
+          }
+        }
+
+        Behavior on implicitHeight {
           NumberAnimation {
             duration: Theme.motionNormal
             easing.type: Easing.OutCubic
@@ -176,25 +191,36 @@ Pill {
         Text {
           id: clockText
           anchors.centerIn: parent
-          visible: !OsdState.shown && !root.screenshotMenuVisible
-            && !root.recordingMenuVisible && !root.recordingActive
+          visible: opacity > 0
+          opacity: !OsdState.shown && !root.screenshotSurfaceShown ? 1 : 0
           font.weight: Theme.weightStrong
           text: Time.time
           color: Theme.foreground
+
+          Behavior on opacity {
+            NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic }
+          }
         }
 
         Osd {
           id: osd
           anchors.centerIn: parent
-          visible: OsdState.shown && !root.screenshotMenuVisible
-            && !root.recordingMenuVisible && !root.recordingActive
+          visible: opacity > 0
+          opacity: OsdState.shown && !root.screenshotSurfaceShown ? 1 : 0
           iconType: OsdState.iconType
           value: OsdState.value
+
+          Behavior on opacity {
+            NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic }
+          }
         }
 
         ScreenshotMenu {
           id: screenshotMenu
           anchors.centerIn: parent
+          visible: opacity > 0
+          opacity: root.screenshotSurfaceShown ? 1 : 0
+          scale: root.screenshotSurfaceShown ? 1 : 0.92
           screenshotVisible: root.screenshotMenuVisible
           recordingVisible: root.recordingMenuVisible
           recordingActive: root.recordingActive
@@ -204,6 +230,18 @@ Pill {
           audioSink: root.audioSink
           onCaptureRequested: function(mode) { root.capture(mode) }
           onRecordingMenuRequested: root.showRecordingMenu()
+          onCloseRequested: root.closeScreenshotMenu()
+
+          Behavior on opacity {
+            SequentialAnimation {
+              PauseAnimation { duration: root.screenshotSurfaceShown ? 30 : 0 }
+              NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
+            }
+          }
+
+          Behavior on scale {
+            NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
+          }
         }
       }
     }

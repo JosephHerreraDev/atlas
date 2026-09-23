@@ -5,10 +5,12 @@ import QtQuick.Effects
 import "../"
 import "../shared/"
 
-Item {
+FocusScope {
   id: root
 
-  readonly property int menuHeight: 26
+  readonly property int buttonHeight: 36
+  readonly property int verticalMargin: 4
+  readonly property int menuHeight: buttonHeight + verticalMargin * 2
 
   required property bool screenshotVisible
   required property bool recordingVisible
@@ -20,6 +22,27 @@ Item {
 
   signal captureRequested(string mode)
   signal recordingMenuRequested()
+  signal closeRequested()
+
+  readonly property bool closable: screenshotVisible || recordingVisible
+  focus: closable
+
+  onClosableChanged: {
+    if (closable)
+      Qt.callLater(function() { root.forceActiveFocus() })
+  }
+
+  Keys.onEscapePressed: function(event) {
+    root.closeRequested()
+    event.accepted = true
+  }
+
+  Shortcut {
+    sequence: "Escape"
+    context: Qt.WindowShortcut
+    enabled: root.closable
+    onActivated: root.closeRequested()
+  }
 
   function formatElapsed(seconds) {
     const hours = Math.floor(seconds / 3600)
@@ -45,16 +68,16 @@ Item {
     required property string icon
     required property string tooltip
 
-    implicitWidth: 22
-    implicitHeight: root.menuHeight
+    implicitWidth: 38
+    implicitHeight: root.buttonHeight
     horizontalPadding: 0
     verticalPadding: 0
     buttonBorderColor: Theme.color2
 
     IconImage {
       anchors.centerIn: parent
-      implicitWidth: 16
-      implicitHeight: 16
+      implicitWidth: 20
+      implicitHeight: 20
       source: Qt.resolvedUrl(button.icon)
 
       layer.enabled: true
@@ -134,13 +157,13 @@ Item {
     spacing: Theme.spaceXs
 
     Item {
-      implicitWidth: 24
-      implicitHeight: root.menuHeight
+      implicitWidth: 38
+      implicitHeight: root.buttonHeight
 
       IconImage {
         anchors.centerIn: parent
-        implicitWidth: 16
-        implicitHeight: 16
+        implicitWidth: 20
+        implicitHeight: 20
         source: Qt.resolvedUrl("../assets/screen-record.svg")
 
         layer.enabled: true
@@ -153,7 +176,7 @@ Item {
     }
 
     Text {
-      height: root.menuHeight
+      height: root.buttonHeight
       text: root.formatElapsed(root.elapsedSeconds)
       color: root.recordingPaused ? Theme.color5 : Theme.foreground
       font.family: "monospace"

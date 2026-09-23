@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 
@@ -34,11 +35,15 @@ Scope {
     PanelWindow {
       readonly property int screenGap: 2
       readonly property int barHeight: 30
+      readonly property int surfaceHeight: 64
 
       color: "#00000000"
 
       required property var modelData
       screen: modelData
+      focusable: clock.screenshotMenuClosable
+      WlrLayershell.keyboardFocus: clock.screenshotMenuClosable
+        ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
       anchors {
         top: true
@@ -52,8 +57,34 @@ Scope {
         right: 10
       }
 
-      implicitHeight: barHeight
+      implicitHeight: surfaceHeight
       exclusiveZone: screenGap + barHeight - (10)
+
+      mask: Region {
+        Region {
+          intersection: Intersection.Combine
+          x: Math.floor(workspaces.x)
+          y: Math.floor(workspaces.y)
+          width: Math.ceil(workspaces.width)
+          height: Math.ceil(workspaces.height)
+        }
+
+        Region {
+          intersection: Intersection.Combine
+          x: Math.floor(clock.x)
+          y: Math.floor(clock.y)
+          width: Math.ceil(clock.width)
+          height: Math.ceil(clock.height)
+        }
+
+        Region {
+          intersection: Intersection.Combine
+          x: Math.floor(system.x)
+          y: Math.floor(system.y)
+          width: Math.ceil(system.width)
+          height: Math.ceil(system.height)
+        }
+      }
 
       Item {
         anchors.fill: parent
@@ -61,29 +92,37 @@ Scope {
         Workspaces{
           id: workspaces
           shellScreen: modelData
+          width: implicitWidth
+          height: implicitHeight
 
           anchors {
             left: parent.left
-            verticalCenter: parent.verticalCenter
+            top: parent.top
+            topMargin: Math.max(0, (barHeight - workspaces.implicitHeight) / 2)
           }
         }
 
         ClockWidget {
           id: clock
+          width: implicitWidth
+          height: implicitHeight
 
           anchors {
             horizontalCenter: parent.horizontalCenter
-            verticalCenter: parent.verticalCenter
+            top: parent.top
           }
         }
 
         System {
           id: system
           notifications: root.notifications
+          width: implicitWidth
+          height: implicitHeight
 
           anchors {
             right: parent.right
-            verticalCenter: parent.verticalCenter
+            top: parent.top
+            topMargin: Math.max(0, (barHeight - system.implicitHeight) / 2)
           }
         }
 
