@@ -11,6 +11,12 @@ Pill {
 
   borderEnabled: false
 
+  readonly property int collapsedImplicitHeight: 20 + margin * 2
+  readonly property int maximumImplicitHeight: Math.max(
+    collapsedImplicitHeight,
+    calendarMenu.implicitHeight + margin * 2,
+    screenshotMenu.implicitHeight + margin * 2)
+
   property bool calendarVisible: false
   property bool screenshotMenuVisible: false
   property bool recordingMenuVisible: false
@@ -24,8 +30,10 @@ Pill {
   readonly property bool muted: audioSink?.audio.muted ?? false
   readonly property bool screenshotSurfaceShown: screenshotMenuVisible
     || recordingMenuVisible || recordingActive
-  readonly property bool screenshotMenuClosable: screenshotMenuVisible
-    || recordingMenuVisible
+  readonly property bool menuSurfaceShown: calendarVisible
+    || screenshotSurfaceShown
+  readonly property bool menuClosable: calendarVisible
+    || screenshotMenuVisible || recordingMenuVisible
 
   function toggleScreenshotMenu(): void {
     if (root.recordingActive)
@@ -148,10 +156,12 @@ Pill {
     Button {
       id: clockButton
 
-      implicitHeight: root.screenshotSurfaceShown
-        ? screenshotMenu.implicitHeight
+      implicitHeight: root.menuSurfaceShown
+        ? (root.calendarVisible
+          ? calendarMenu.implicitHeight
+          : screenshotMenu.implicitHeight)
         : (OsdState.shown ? osd.implicitHeight : 20)
-      buttonColor: root.screenshotSurfaceShown
+      buttonColor: root.menuSurfaceShown
         ? Theme.color0
         : (hovered ? Theme.color1 : Theme.color0)
       buttonBorderColor: Theme.borderFocus
@@ -160,18 +170,22 @@ Pill {
         if (root.screenshotMenuVisible || root.recordingMenuVisible) {
           root.screenshotMenuVisible = false
           root.recordingMenuVisible = false
-        } else {
+        } else if (!root.recordingActive) {
           root.calendarVisible = !root.calendarVisible
         }
       }
 
       Item {
         anchors.centerIn: parent
-        implicitWidth: root.screenshotSurfaceShown
-          ? screenshotMenu.implicitWidth
+        implicitWidth: root.menuSurfaceShown
+          ? (root.calendarVisible
+            ? calendarMenu.implicitWidth
+            : screenshotMenu.implicitWidth)
           : (OsdState.shown ? osd.implicitWidth : clockText.implicitWidth)
-        implicitHeight: root.screenshotSurfaceShown
-          ? screenshotMenu.implicitHeight
+        implicitHeight: root.menuSurfaceShown
+          ? (root.calendarVisible
+            ? calendarMenu.implicitHeight
+            : screenshotMenu.implicitHeight)
           : (OsdState.shown ? osd.implicitHeight : 20)
 
         Behavior on implicitWidth {
@@ -192,7 +206,7 @@ Pill {
           id: clockText
           anchors.centerIn: parent
           visible: opacity > 0
-          opacity: !OsdState.shown && !root.screenshotSurfaceShown ? 1 : 0
+          opacity: !OsdState.shown && !root.menuSurfaceShown ? 1 : 0
           font.weight: Theme.weightStrong
           text: Time.time
           color: Theme.foreground
@@ -206,7 +220,7 @@ Pill {
           id: osd
           anchors.centerIn: parent
           visible: opacity > 0
-          opacity: OsdState.shown && !root.screenshotSurfaceShown ? 1 : 0
+          opacity: OsdState.shown && !root.menuSurfaceShown ? 1 : 0
           iconType: OsdState.iconType
           value: OsdState.value
 
@@ -243,18 +257,28 @@ Pill {
             NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
           }
         }
-      }
-    }
 
-    CalendarPopup {
-      id: calendarPopup
+        CalendarMenu {
+          id: calendarMenu
 
-      anchorItem: clockButton
-      shown: root.calendarVisible
+          anchors.centerIn: parent
+          visible: opacity > 0
+          opacity: root.calendarVisible ? 1 : 0
+          scale: root.calendarVisible ? 1 : 0.92
+          calendarVisible: root.calendarVisible
+          onCloseRequested: root.calendarVisible = false
 
-      onVisibleChanged: {
-        if (!visible && root.calendarVisible)
-          root.calendarVisible = false
+          Behavior on opacity {
+            SequentialAnimation {
+              PauseAnimation { duration: root.calendarVisible ? 30 : 0 }
+              NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
+            }
+          }
+
+          Behavior on scale {
+            NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
+          }
+        }
       }
     }
   }

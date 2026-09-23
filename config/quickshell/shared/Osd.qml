@@ -10,7 +10,7 @@ Item {
   readonly property real normalizedValue: Math.max(0, Math.min(1, value))
 
   implicitWidth: 220
-  implicitHeight: 24
+  implicitHeight: 20
 
   Row {
     anchors.fill: parent

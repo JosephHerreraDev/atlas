@@ -404,8 +404,14 @@ Item {
           width: parent.width
           spacing: root.spaceSm
 
-          Volume {
-            id: volume
+          Item {
+            Layout.preferredWidth: 30
+            Layout.preferredHeight: root.controlHeight
+
+            Volume {
+              id: volume
+              anchors.centerIn: parent
+            }
           }
 
           Slider {
@@ -440,8 +446,14 @@ Item {
           width: parent.width
           spacing: root.spaceSm
 
-          Brightness {
-            id: brightness
+          Item {
+            Layout.preferredWidth: 30
+            Layout.preferredHeight: root.controlHeight
+
+            Brightness {
+              id: brightness
+              anchors.centerIn: parent
+            }
           }
 
           Slider {
@@ -452,6 +464,11 @@ Item {
               brightness.setBrightness(value)
               OsdState.show("brightness", value)
             }
+          }
+
+          Item {
+            Layout.preferredWidth: 30
+            Layout.preferredHeight: root.controlHeight
           }
         }
 

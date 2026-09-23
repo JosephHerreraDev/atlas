@@ -33,17 +33,29 @@ Scope {
     model: Quickshell.screens
 
     PanelWindow {
+      id: window
+
       readonly property int screenGap: 2
       readonly property int barHeight: 30
-      readonly property int surfaceHeight: 64
+      readonly property int clockTopMargin: Math.max(0,
+        (barHeight - clock.collapsedImplicitHeight) / 2)
+      readonly property int surfaceHeight: Math.max(64,
+        clock.maximumImplicitHeight + clockTopMargin)
 
       color: "#00000000"
 
       required property var modelData
       screen: modelData
-      focusable: clock.screenshotMenuClosable
-      WlrLayershell.keyboardFocus: clock.screenshotMenuClosable
+      focusable: clock.menuClosable
+      WlrLayershell.keyboardFocus: clock.menuClosable
         ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+      HyprlandFocusGrab {
+        windows: [window]
+        active: clock.calendarVisible
+
+        onCleared: clock.calendarVisible = false
+      }
 
       anchors {
         top: true
@@ -110,6 +122,7 @@ Scope {
           anchors {
             horizontalCenter: parent.horizontalCenter
             top: parent.top
+            topMargin: clockTopMargin
           }
         }
 

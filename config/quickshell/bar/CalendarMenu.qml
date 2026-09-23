@@ -4,11 +4,16 @@ import QtQuick.Layouts
 import "../"
 import "../shared/"
 
-Popup {
+FocusScope {
   id: root
 
   implicitWidth: 320
-  padding: Theme.spaceXl
+  implicitHeight: calendar.implicitHeight + padding * 2
+
+  readonly property int padding: Theme.spaceXl
+  required property bool calendarVisible
+
+  signal closeRequested()
 
   property int monthOffset: 0
   readonly property date now: clock.date
@@ -24,19 +29,35 @@ Popup {
       && displayedMonth.getFullYear() === now.getFullYear()
   }
 
-  anchor {
-    rect.x: root.anchorItem.width / 2
-    edges: Edges.Top
-    gravity: Edges.Bottom
+  focus: calendarVisible
+
+  onCalendarVisibleChanged: {
+    if (calendarVisible)
+      Qt.callLater(function() { root.forceActiveFocus() })
+  }
+
+  Keys.onEscapePressed: function(event) {
+    root.closeRequested()
+    event.accepted = true
+  }
+
+  Shortcut {
+    sequence: "Escape"
+    context: Qt.WindowShortcut
+    enabled: root.calendarVisible
+    onActivated: root.closeRequested()
   }
 
   SystemClock {
     id: clock
-    precision: SystemClock.Minutes
+    precision: SystemClock.Seconds
   }
 
   Column {
-    width: parent.width
+    id: calendar
+
+    anchors.centerIn: parent
+    width: root.width - root.padding * 2
     spacing: Theme.spaceLg
 
     Column {
@@ -56,6 +77,14 @@ Popup {
         text: Qt.formatDate(root.now, "yyyy")
         color: Theme.color5
         font.pixelSize: Theme.fontBody
+      }
+
+      Text {
+        width: parent.width
+        text: Qt.formatDateTime(root.now, "HH:mm:ss")
+        color: Theme.foreground
+        font.pixelSize: Theme.fontDisplay
+        font.weight: Theme.weightStrong
       }
     }
 
