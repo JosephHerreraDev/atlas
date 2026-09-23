@@ -9,6 +9,7 @@ Item {
   property real value: 0
 
   signal moved(real value)
+  signal wheelMoved(bool up)
 
   readonly property real displayValue: sliderMouse.pressed
     ? sliderMouse.previewValue
@@ -79,6 +80,10 @@ Item {
         previewValue = valueAt(mouse.x)
         root.moved(previewValue)
       }
+    }
+    onWheel: function(wheel) {
+      root.wheelMoved(wheel.angleDelta.y > 0)
+      wheel.accepted = true
     }
   }
 }

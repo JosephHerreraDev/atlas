@@ -410,6 +410,8 @@ Item {
 
             Volume {
               id: volume
+              width: 18
+              height: 14
               anchors.centerIn: parent
             }
           }
@@ -420,6 +422,15 @@ Item {
             onMoved: function(value) {
               if (!volume.sink)
                 return
+              volume.sink.audio.volume = value
+              if (value > 0)
+                volume.sink.audio.muted = false
+            }
+            onWheelMoved: function(up) {
+              if (!volume.sink)
+                return
+              const value = Math.max(0, Math.min(1,
+                volume.volume + (up ? 0.02 : -0.02)))
               volume.sink.audio.volume = value
               if (value > 0)
                 volume.sink.audio.muted = false
@@ -452,6 +463,8 @@ Item {
 
             Brightness {
               id: brightness
+              width: 18
+              height: 14
               anchors.centerIn: parent
             }
           }
@@ -461,6 +474,12 @@ Item {
             from: 0.01
             value: brightness.brightness
             onMoved: function(value) {
+              brightness.setBrightness(value)
+              OsdState.show("brightness", value)
+            }
+            onWheelMoved: function(up) {
+              const value = Math.max(0.01, Math.min(1,
+                brightness.brightness + (up ? 0.02 : -0.02)))
               brightness.setBrightness(value)
               OsdState.show("brightness", value)
             }
