@@ -79,7 +79,7 @@ Item {
 
     anchors.centerIn: parent
     visible: root.screenshotVisible && !root.recordingActive
-    spacing: 2
+    spacing: Theme.spaceXxs
 
     Repeater {
       model: [
@@ -109,7 +109,7 @@ Item {
 
     anchors.centerIn: parent
     visible: root.recordingVisible && !root.recordingActive
-    spacing: 2
+    spacing: Theme.spaceXxs
 
     Repeater {
       model: [
@@ -131,7 +131,7 @@ Item {
     id: recordingControls
     anchors.centerIn: parent
     visible: root.recordingActive
-    spacing: 4
+    spacing: Theme.spaceXs
 
     Item {
       implicitWidth: 24
@@ -157,8 +157,8 @@ Item {
       text: root.formatElapsed(root.elapsedSeconds)
       color: root.recordingPaused ? Theme.color5 : Theme.foreground
       font.family: "monospace"
-      font.pixelSize: 11
-      font.weight: Font.DemiBold
+      font.pixelSize: Theme.fontCaption
+      font.weight: Theme.weightStrong
       verticalAlignment: Text.AlignVCenter
     }
 

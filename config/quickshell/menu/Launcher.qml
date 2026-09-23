@@ -20,7 +20,7 @@ Scope {
   property int selectedIndex: -1
   property int focusRequest: 0
 
-  readonly property int animationDuration: 140
+  readonly property int animationDuration: Theme.motionNormal - 20
   readonly property int maxVisibleRows: 6
 
   function screenFocused(screen) {
@@ -265,10 +265,10 @@ Scope {
         implicitHeight: content.implicitHeight + 32
         anchors.centerIn: parent
 
-        radius: 8
+        radius: Theme.radiusLg
         color: Theme.color0
-        border.width: 1
-        border.color: Theme.color2
+        border.width: Theme.borderWidth
+        border.color: Theme.border
 
         Behavior on opacity {
           NumberAnimation {
@@ -300,7 +300,7 @@ Scope {
             margins: 14
           }
 
-          spacing: 12
+          spacing: Theme.spaceLg
 
           RowLayout {
             Layout.fillWidth: true
@@ -309,15 +309,15 @@ Scope {
               Layout.fillWidth: true
               text: "Applications"
               color: Theme.color6
-              font.pixelSize: 18
-              font.weight: Font.DemiBold
+              font.pixelSize: Theme.fontDisplay
+              font.weight: Theme.weightStrong
               elide: Text.ElideRight
             }
 
             Text {
               text: root.appsLoaded ? root.apps.length + " available" : "Loading"
               color: Theme.color4
-              font.pixelSize: 12
+              font.pixelSize: Theme.fontBody
             }
           }
 
@@ -335,10 +335,10 @@ Scope {
             leftPadding: 12
             rightPadding: 12
             background: Rectangle {
-              radius: 6
+              radius: Theme.radiusMd
               color: Theme.color1
-              border.width: 1
-              border.color: input.activeFocus ? Theme.color8 : Theme.color3
+              border.width: Theme.borderWidth
+              border.color: input.activeFocus ? Theme.borderFocus : Theme.color3
             }
 
             onTextChanged: root.query = text
@@ -382,7 +382,7 @@ Scope {
             currentIndex: root.selectedIndex
             model: root.filteredApps
             boundsBehavior: Flickable.StopAtBounds
-            spacing: 4
+            spacing: Theme.spaceXs
 
             onCurrentIndexChanged: {
               if (currentIndex >= 0) {
@@ -404,12 +404,13 @@ Scope {
 
               width: resultsList.width
               height: 68
-              radius: 6
+              radius: Theme.radiusMd
               color: ListView.isCurrentItem || cardMouse.containsMouse
                 ? Theme.color1
                 : Theme.color0
-              border.width: ListView.isCurrentItem || cardMouse.containsMouse ? 1 : 0
-              border.color: ListView.isCurrentItem ? Theme.color8 : Theme.color3
+              border.width: ListView.isCurrentItem || cardMouse.containsMouse
+                ? Theme.borderWidth : 0
+              border.color: ListView.isCurrentItem ? Theme.borderFocus : Theme.color3
 
               RowLayout {
                 anchors {
@@ -420,7 +421,7 @@ Scope {
                   margins: 12
                 }
 
-                spacing: 10
+                spacing: Theme.spaceSm + Theme.spaceXxs
 
                 IconImage {
                   id: appIcon
@@ -439,31 +440,32 @@ Scope {
                   Layout.preferredHeight: 32
                   Layout.alignment: Qt.AlignVCenter
                   visible: !appIcon.visible
-                  radius: 6
+                  radius: Theme.radiusMd
                   color: Theme.color2
-                  border.width: 1
+                  border.width: Theme.borderWidth
                   border.color: Theme.color3
 
                   Text {
                     anchors.centerIn: parent
                     text: appCard.modelData.name.length > 0 ? appCard.modelData.name[0].toUpperCase() : "?"
                     color: Theme.color6
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
+                    font.pixelSize: Theme.fontBody + 1
+                    font.weight: Theme.weightStrong
                   }
                 }
 
                 ColumnLayout {
                   Layout.fillWidth: true
                   Layout.alignment: Qt.AlignVCenter
-                  spacing: 2
+                  spacing: Theme.spaceXxs
 
                   Text {
                     Layout.fillWidth: true
                     text: appCard.modelData.name
                     color: ListView.isCurrentItem ? Theme.color6 : Theme.color4
                     font.pixelSize: 15
-                    font.weight: ListView.isCurrentItem ? Font.DemiBold : Font.Medium
+                    font.weight: ListView.isCurrentItem
+                      ? Theme.weightStrong : Theme.weightMedium
                     elide: Text.ElideRight
                   }
 
@@ -472,7 +474,7 @@ Scope {
                     visible: appCard.modelData.comment.length > 0 || appCard.modelData.genericName.length > 0
                     text: appCard.modelData.comment.length > 0 ? appCard.modelData.comment : appCard.modelData.genericName
                     color: Theme.color4
-                    font.pixelSize: 11
+                    font.pixelSize: Theme.fontCaption
                     elide: Text.ElideRight
                   }
                 }

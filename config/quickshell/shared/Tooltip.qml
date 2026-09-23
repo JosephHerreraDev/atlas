@@ -33,9 +33,9 @@ Item {
       anchors.fill: parent
 
       color: Theme.color1
-      border.color: Theme.color8
-      border.width: 1
-      radius: 4
+      border.color: Theme.borderFocus
+      border.width: Theme.borderWidth
+      radius: Theme.radiusSm
 
       Text {
         id: tooltipText

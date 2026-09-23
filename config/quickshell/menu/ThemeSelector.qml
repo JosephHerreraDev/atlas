@@ -17,7 +17,7 @@ Scope {
   property int focusRequest: 0
   property var themes: []
 
-  readonly property int animationDuration: 140
+  readonly property int animationDuration: Theme.motionNormal - 20
   readonly property var themePalettes: ({
     "catppuccin": ["#f38ba8", "#a6e3a1", "#f9e2af", "#89b4fa", "#f5c2e7"],
     "everforest": ["#e67e80", "#a7c080", "#dbbc7f", "#7fbbb3", "#d699b6"],
@@ -169,10 +169,10 @@ Scope {
         anchors.centerIn: parent
         opacity: root.opened ? 1 : 0
         scale: root.opened ? 1 : 0.96
-        radius: 8
+        radius: Theme.radiusLg
         color: Theme.color0
-        border.width: 1
-        border.color: Theme.color2
+        border.width: Theme.borderWidth
+        border.color: Theme.border
         Behavior on opacity { NumberAnimation { duration: root.animationDuration } }
         Behavior on scale { NumberAnimation { duration: root.animationDuration } }
         MouseArea { anchors.fill: parent; onClicked: function(mouse) { mouse.accepted = true } }
@@ -180,13 +180,13 @@ Scope {
         ColumnLayout {
           id: content
           anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
-          spacing: 10
+          spacing: Theme.spaceSm + Theme.spaceXxs
 
           Text {
             text: "Themes"
             color: Theme.color6
-            font.pixelSize: 18
-            font.weight: Font.DemiBold
+            font.pixelSize: Theme.fontDisplay
+            font.weight: Theme.weightStrong
           }
 
           TextField {
@@ -216,10 +216,10 @@ Scope {
               }
             }
             background: Rectangle {
-              radius: 6
+              radius: Theme.radiusMd
               color: Theme.color1
-              border.width: 1
-              border.color: input.activeFocus ? Theme.color8 : Theme.color3
+              border.width: Theme.borderWidth
+              border.color: input.activeFocus ? Theme.borderFocus : Theme.color3
             }
           }
 
@@ -242,7 +242,7 @@ Scope {
             interactive: root.filteredThemes.length > 7
             model: root.filteredThemes
             currentIndex: root.selectedIndex
-            spacing: 4
+            spacing: Theme.spaceXs
             boundsBehavior: Flickable.StopAtBounds
             onCurrentIndexChanged: if (currentIndex >= 0)
               positionViewAtIndex(currentIndex, ListView.Contain)
@@ -258,21 +258,22 @@ Scope {
               readonly property var palette: root.themePalettes[modelData] || []
               width: themeList.width
               height: 42
-              radius: 6
+              radius: Theme.radiusMd
               color: ListView.isCurrentItem || mouse.containsMouse ? Theme.color1 : Theme.color0
-              border.width: ListView.isCurrentItem ? 1 : 0
-              border.color: Theme.color8
+              border.width: ListView.isCurrentItem ? Theme.borderWidth : 0
+              border.color: Theme.borderFocus
               RowLayout {
                 anchors.fill: parent
                 anchors.margins: 12
-                spacing: 6
+                spacing: Theme.radiusMd
 
                 Text {
                   Layout.fillWidth: true
                   text: themeRow.modelData.replace(/-/g, " ")
                   color: themeRow.ListView.isCurrentItem ? Theme.color6 : Theme.color4
                   font.pixelSize: 13
-                  font.weight: themeRow.ListView.isCurrentItem ? Font.DemiBold : Font.Medium
+                  font.weight: themeRow.ListView.isCurrentItem
+                    ? Theme.weightStrong : Theme.weightMedium
                   elide: Text.ElideRight
                 }
 
@@ -283,10 +284,10 @@ Scope {
                     required property string modelData
                     Layout.preferredWidth: 12
                     Layout.preferredHeight: 12
-                    radius: 6
+                    radius: Theme.radiusMd
                     color: modelData
-                    border.width: 1
-                    border.color: Theme.color2
+                    border.width: Theme.borderWidth
+                    border.color: Theme.border
                   }
                 }
               }

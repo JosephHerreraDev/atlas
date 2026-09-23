@@ -52,8 +52,8 @@ Item {
     height: 12
     radius: width / 2
     color: sliderMouse.pressed ? Theme.color5 : Theme.foreground
-    border.width: 1
-    border.color: Theme.color8
+    border.width: Theme.borderWidth
+    border.color: Theme.borderFocus
   }
 
   MouseArea {

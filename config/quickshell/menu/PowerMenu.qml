@@ -17,9 +17,9 @@ Scope {
   property int selectedIndex: 0
   property int focusRequest: 0
 
-  readonly property int animationDuration: 140
+  readonly property int animationDuration: Theme.motionNormal - 20
   readonly property int actionSize: 52
-  readonly property int actionSpacing: 6
+  readonly property int actionSpacing: Theme.radiusMd
   readonly property var actions: [
     { name: "Lock", description: "Lock the current session", icon: "lock.svg", command: ["hyprlock"] },
     { name: "Log out", description: "End the current session", icon: "logout.svg", command: ["hyprctl", "dispatch", "exit"] },
@@ -128,10 +128,10 @@ Scope {
         anchors.centerIn: parent
         opacity: root.opened ? 1 : 0
         scale: root.opened ? 1 : 0.96
-        radius: 8
+        radius: Theme.radiusLg
         color: Theme.color0
-        border.width: 1
-        border.color: Theme.color2
+        border.width: Theme.borderWidth
+        border.color: Theme.border
         Behavior on opacity { NumberAnimation { duration: root.animationDuration } }
         Behavior on scale { NumberAnimation { duration: root.animationDuration } }
         MouseArea { anchors.fill: parent; onClicked: function(mouse) { mouse.accepted = true } }
@@ -178,9 +178,10 @@ Scope {
                 required property var modelData
                 width: root.actionSize
                 height: root.actionSize
-                radius: 6
+                radius: Theme.radiusMd
                 color: ListView.isCurrentItem || actionMouse.containsMouse ? Theme.color3 : Theme.color1
-                border.width: ListView.isCurrentItem || actionMouse.containsMouse ? 1 : 0
+                border.width: ListView.isCurrentItem || actionMouse.containsMouse
+                  ? Theme.borderWidth : 0
                 border.color: ListView.isCurrentItem ? Theme.selectionForeground : Theme.color3
 
                 IconImage {

@@ -80,7 +80,7 @@ Pill {
           Text {
             text: WorkspaceDisplay.label(workspaceButton.workspace)
 
-            font.pixelSize: 12
+            font.pixelSize: Theme.fontBody
             font.weight: workspaceButton.workspace.focused
             ? Font.DemiBold
             : Font.Medium

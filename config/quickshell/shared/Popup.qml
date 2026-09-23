@@ -83,7 +83,7 @@ PopupWindow {
     target: root
     property: "slideOffset"
     to: 0
-    duration: 160
+    duration: Theme.motionNormal
     easing.type: Easing.OutCubic
   }
 
@@ -93,7 +93,7 @@ PopupWindow {
     target: root
     property: "slideOffset"
     to: -12
-    duration: 140
+    duration: Theme.motionNormal - 20
     easing.type: Easing.InCubic
 
     onFinished: {
@@ -104,10 +104,10 @@ PopupWindow {
 
   Rectangle {
     anchors.fill: parent
-    color: Theme.color0
-    border.color: Theme.foreground
-    border.width: 1
-    radius: 6
+    color: Theme.surface
+    border.color: Theme.text
+    border.width: Theme.borderWidth
+    radius: Theme.radiusMd
     transform: Translate {
       y: root.slideOffset
     }
@@ -120,4 +120,3 @@ PopupWindow {
     }
   }
 }
-

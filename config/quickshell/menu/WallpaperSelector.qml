@@ -18,8 +18,8 @@ Scope {
   property int selectedIndex: -1
   property int focusRequest: 0
 
-  readonly property int animationDuration: 180
-  readonly property int selectionDuration: 240
+  readonly property int animationDuration: Theme.motionNormal + 20
+  readonly property int selectionDuration: Theme.motionSlow
 
   function screenFocused(screen) {
     const monitor = Hyprland.monitorFor(screen)
@@ -158,10 +158,10 @@ Scope {
         height: Math.min(300, window.height * 0.34)
         opacity: root.opened ? 1 : 0
         scale: root.opened ? 1 : 0.97
-        radius: 8
+        radius: Theme.radiusLg
         color: Theme.color0
-        border.width: 1
-        border.color: Theme.color2
+        border.width: Theme.borderWidth
+        border.color: Theme.border
 
         transform: Translate {
           y: root.opened ? 0 : 18
@@ -193,7 +193,7 @@ Scope {
         ColumnLayout {
           id: content
           anchors.fill: parent
-          spacing: 10
+          spacing: Theme.spaceSm + Theme.spaceXxs
           opacity: root.opened ? 1 : 0
 
           transform: Translate {
@@ -222,13 +222,13 @@ Scope {
               Layout.fillWidth: true
               text: root.title
               color: Theme.color6
-              font.pixelSize: 18
-              font.weight: Font.DemiBold
+              font.pixelSize: Theme.fontDisplay
+              font.weight: Theme.weightStrong
             }
             Text {
               text: root.wallpapers.length + " available"
               color: Theme.color4
-              font.pixelSize: 12
+              font.pixelSize: Theme.fontBody
             }
           }
 
@@ -255,7 +255,7 @@ Scope {
             orientation: ListView.Horizontal
             model: root.wallpapers
             currentIndex: root.selectedIndex
-            spacing: 10
+            spacing: Theme.spaceSm + Theme.spaceXxs
             boundsBehavior: Flickable.StopAtBounds
             snapMode: ListView.SnapOneItem
             highlightMoveDuration: root.selectionDuration
@@ -308,7 +308,7 @@ Scope {
               height: wallpaperList.height - 16
               anchors.verticalCenter: parent.verticalCenter
               z: selected ? 2 : (hovered ? 1 : 0)
-              radius: 8
+              radius: Theme.radiusLg
               color: selected || hovered ? Theme.color2 : Theme.color1
               opacity: selected ? 1 : (hovered ? 0.92 : 0.72)
               scale: selected ? 1 : (hovered ? 0.97 : 0.94)
@@ -346,7 +346,8 @@ Scope {
                 z: 2
                 radius: parent.radius
                 color: "transparent"
-                border.width: wallpaperCard.selected ? 2 : 1
+                border.width: wallpaperCard.selected
+                  ? Theme.spaceXxs : Theme.borderWidth
                 border.color: wallpaperCard.selected ? Theme.color8
                   : (wallpaperCard.hovered ? Theme.color9 : Theme.color2)
 

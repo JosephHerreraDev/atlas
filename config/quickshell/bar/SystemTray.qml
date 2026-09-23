@@ -13,17 +13,17 @@ Item {
   property var pinnedIds: []
   property bool panelVisible: false
   required property Item popupAnchor
-  readonly property int spaceXs: 4
-  readonly property int spaceSm: 8
-  readonly property int spaceMd: 8
-  readonly property int spaceLg: 12
-  readonly property int controlHeight: 28
+  readonly property int spaceXs: Theme.spaceXs
+  readonly property int spaceSm: Theme.spaceSm
+  readonly property int spaceMd: Theme.spaceMd
+  readonly property int spaceLg: Theme.spaceLg
+  readonly property int controlHeight: Theme.controlHeight
   readonly property int listRowHeight: 34
-  readonly property int bodyFontSize: 12
-  readonly property int captionFontSize: 11
-  readonly property int titleFontSize: 14
-  readonly property int motionFast: 100
-  readonly property int motionNormal: 160
+  readonly property int bodyFontSize: Theme.fontBody
+  readonly property int captionFontSize: Theme.fontCaption
+  readonly property int titleFontSize: Theme.fontTitle
+  readonly property int motionFast: Theme.motionFast
+  readonly property int motionNormal: Theme.motionNormal
 
   readonly property int totalCount: TrayService.SystemTray.items.values.length
   readonly property int hiddenCount: {
@@ -55,7 +55,7 @@ Item {
   }
 
   implicitWidth: visible ? trayRow.implicitWidth : 0
-  implicitHeight: 20
+  implicitHeight: Theme.barControlHeight
   Layout.preferredWidth: visible ? implicitWidth : 0
   visible: totalCount > 0
 
@@ -93,7 +93,7 @@ Item {
 
         Rectangle {
           anchors.fill: parent
-          radius: 4
+          radius: Theme.radiusSm
           color: pinnedMouse.containsMouse ? Theme.color1 : "transparent"
           border.width: pinnedEntry.modelData.status === TrayService.Status.NeedsAttention ? 1 : 0
           border.color: Theme.color13
@@ -153,7 +153,7 @@ Item {
 
       Rectangle {
         anchors.fill: parent
-        radius: 4
+        radius: Theme.radiusSm
         color: toggleMouse.containsMouse || root.panelVisible ? Theme.color1 : "transparent"
         border.width: root.panelVisible ? 1 : 0
         border.color: Theme.color8
@@ -236,7 +236,7 @@ Item {
           text: "System tray"
           color: Theme.foreground
           font.pixelSize: root.titleFontSize
-          font.weight: Font.DemiBold
+          font.weight: Theme.weightStrong
         }
       }
 

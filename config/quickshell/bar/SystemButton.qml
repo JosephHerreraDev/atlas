@@ -18,17 +18,17 @@ Item {
   property string activeSection: "settings"
   property var pendingWifiNetwork: null
   property string wifiPassword: ""
-  readonly property int spaceXs: 4
-  readonly property int spaceSm: 8
-  readonly property int spaceMd: 8
-  readonly property int spaceLg: 12
-  readonly property int controlHeight: 28
-  readonly property int listRowHeight: 32
-  readonly property int bodyFontSize: 12
-  readonly property int captionFontSize: 11
-  readonly property int titleFontSize: 14
-  readonly property int motionFast: 100
-  readonly property int motionNormal: 160
+  readonly property int spaceXs: Theme.spaceXs
+  readonly property int spaceSm: Theme.spaceSm
+  readonly property int spaceMd: Theme.spaceMd
+  readonly property int spaceLg: Theme.spaceLg
+  readonly property int controlHeight: Theme.controlHeight
+  readonly property int listRowHeight: Theme.listRowHeight
+  readonly property int bodyFontSize: Theme.fontBody
+  readonly property int captionFontSize: Theme.fontCaption
+  readonly property int titleFontSize: Theme.fontTitle
+  readonly property int motionFast: Theme.motionFast
+  readonly property int motionNormal: Theme.motionNormal
   readonly property bool hasNotifications: notifications.history.count > 0
   readonly property var connectedNetworks: networkList("connected")
   readonly property var availableNetworks: networkList("available")
@@ -39,8 +39,8 @@ Item {
   readonly property var closeBluetoothDevices: bluetoothDeviceList("close")
   readonly property var audioOutputs: audioOutputList()
   implicitWidth: systemButton.implicitWidth
-  implicitHeight: 20
-  Layout.preferredHeight: 20
+  implicitHeight: Theme.barControlHeight
+  Layout.preferredHeight: Theme.barControlHeight
 
   function networkList(section) {
     const result = []
@@ -135,7 +135,7 @@ Item {
 
     anchors.fill: parent
     implicitWidth: iconRow.implicitWidth + horizontalPadding * 2
-    implicitHeight: 20
+    implicitHeight: Theme.barControlHeight
     verticalPadding: 0
     onClicked: root.panelVisible = !root.panelVisible
 
@@ -143,7 +143,7 @@ Item {
       id: iconRow
 
       anchors.centerIn: parent
-      spacing: 4
+      spacing: Theme.spaceXs
 
       Internet {
         id: internet
@@ -170,7 +170,7 @@ Item {
         id: notificationButton
 
         Layout.preferredWidth: 20
-        Layout.preferredHeight: 20
+        Layout.preferredHeight: Theme.barControlHeight
         horizontalPadding: 0
         verticalPadding: 0
         buttonColor: "transparent"
@@ -180,7 +180,7 @@ Item {
         IconImage {
           anchors.centerIn: parent
           implicitWidth: 14
-          implicitHeight: 14
+          implicitHeight: Theme.iconSize
           source: Qt.resolvedUrl(root.hasNotifications
             ? "../assets/bell-filled.svg"
             : "../assets/bell.svg")
@@ -281,7 +281,7 @@ Item {
             text: "Settings"
             color: Theme.foreground
             font.pixelSize: root.titleFontSize
-            font.weight: Font.DemiBold
+            font.weight: Theme.weightStrong
           }
         }
 
@@ -471,7 +471,7 @@ Item {
             text: "Notifications"
             color: Theme.foreground
             font.pixelSize: root.titleFontSize
-            font.weight: Font.DemiBold
+            font.weight: Theme.weightStrong
           }
 
           Button {
@@ -531,9 +531,9 @@ Item {
 
             width: notificationList.width
             height: notificationCardColumn.implicitHeight + root.spaceLg * 2
-            radius: 4
+            radius: Theme.radiusSm
             color: Theme.background
-            border.width: 1
+            border.width: Theme.borderWidth
             border.color: Theme.color2
 
             ColumnLayout {
@@ -552,7 +552,7 @@ Item {
                   text: historyCard.summary
                   color: Theme.foreground
                   font.pixelSize: root.bodyFontSize
-                  font.weight: Font.DemiBold
+                  font.weight: Theme.weightStrong
                   elide: Text.ElideRight
                 }
 
@@ -650,7 +650,7 @@ Item {
             text: "Sound output"
             color: Theme.foreground
             font.pixelSize: root.titleFontSize
-            font.weight: Font.DemiBold
+            font.weight: Theme.weightStrong
           }
         }
 
@@ -749,7 +749,7 @@ Item {
             text: "Internet"
             color: Theme.foreground
             font.pixelSize: root.titleFontSize
-            font.weight: Font.DemiBold
+            font.weight: Theme.weightStrong
           }
 
           Toggle {
@@ -772,7 +772,7 @@ Item {
           text: "Connected networks"
           color: Theme.foreground
           font.pixelSize: root.captionFontSize
-          font.weight: Font.DemiBold
+          font.weight: Theme.weightStrong
         }
 
         Repeater {
@@ -827,7 +827,7 @@ Item {
           text: "Available networks"
           color: Theme.foreground
           font.pixelSize: root.captionFontSize
-          font.weight: Font.DemiBold
+          font.weight: Theme.weightStrong
         }
 
         Repeater {
@@ -882,7 +882,7 @@ Item {
           text: "Nearby networks"
           color: Theme.foreground
           font.pixelSize: root.captionFontSize
-          font.weight: Font.DemiBold
+          font.weight: Theme.weightStrong
         }
 
         Repeater {
@@ -937,9 +937,9 @@ Item {
           Rectangle {
             width: parent.width
             height: root.controlHeight
-            radius: 4
+            radius: Theme.radiusSm
             color: Theme.color0
-            border.width: 1
+            border.width: Theme.borderWidth
             border.color: wifiPasswordInput.activeFocus ? Theme.color8 : Theme.color2
 
             TextInput {
@@ -1045,7 +1045,7 @@ Item {
             text: "Bluetooth"
             color: Theme.foreground
             font.pixelSize: root.titleFontSize
-            font.weight: Font.DemiBold
+            font.weight: Theme.weightStrong
           }
 
           Toggle {
@@ -1071,7 +1071,7 @@ Item {
           text: "Connected devices"
           color: Theme.foreground
           font.pixelSize: root.captionFontSize
-          font.weight: Font.DemiBold
+          font.weight: Theme.weightStrong
         }
 
         Repeater {
@@ -1125,7 +1125,7 @@ Item {
           text: "Available devices"
           color: Theme.foreground
           font.pixelSize: root.captionFontSize
-          font.weight: Font.DemiBold
+          font.weight: Theme.weightStrong
         }
 
         Repeater {
@@ -1179,7 +1179,7 @@ Item {
           text: "Nearby devices"
           color: Theme.foreground
           font.pixelSize: root.captionFontSize
-          font.weight: Font.DemiBold
+          font.weight: Theme.weightStrong
         }
 
         Repeater {

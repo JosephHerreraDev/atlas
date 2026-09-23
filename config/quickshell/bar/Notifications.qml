@@ -70,9 +70,9 @@ Scope {
           }
           Layout.fillWidth: true
           Layout.preferredHeight: layout.implicitHeight + 20
-          radius: 4
+          radius: Theme.radiusSm
           color: Theme.background
-          border.width: 1
+          border.width: Theme.borderWidth
           border.color: modelData.urgency === NotificationUrgency.Critical 
             ? Theme.color11 : Theme.foreground
 

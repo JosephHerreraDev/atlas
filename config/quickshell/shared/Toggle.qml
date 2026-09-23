@@ -12,24 +12,24 @@ Rectangle {
   radius: height / 2
   color: checked ? Theme.color8 : Theme.color2
   opacity: enabled ? 1 : 0.5
-  border.width: 1
+  border.width: Theme.borderWidth
   border.color: hoverHandler.hovered ? Theme.foreground : color
 
   Behavior on color {
-    ColorAnimation { duration: 100 }
+    ColorAnimation { duration: Theme.motionFast }
   }
 
   Rectangle {
     width: 12
     height: 12
-    radius: 6
+    radius: Theme.radiusMd
     anchors.verticalCenter: parent.verticalCenter
     x: root.checked ? root.width - width - 3 : 3
     color: root.checked ? Theme.color0 : Theme.foreground
 
     Behavior on x {
       NumberAnimation {
-        duration: 120
+        duration: Theme.motionFast + 20
         easing.type: Easing.OutCubic
       }
     }

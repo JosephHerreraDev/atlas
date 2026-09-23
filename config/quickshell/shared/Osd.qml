@@ -14,7 +14,7 @@ Item {
 
   Row {
     anchors.fill: parent
-    spacing: 12
+    spacing: Theme.spaceLg
 
     Loader {
       anchors.verticalCenter: parent.verticalCenter
@@ -45,7 +45,7 @@ Item {
 
         Behavior on width {
           NumberAnimation {
-            duration: 80
+            duration: Theme.motionQuick - 10
             easing.type: Easing.OutCubic
           }
         }

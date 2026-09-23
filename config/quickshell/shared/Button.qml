@@ -6,16 +6,16 @@ Rectangle {
   id: root
 
   property color buttonColor: root.hovered
-    ? Theme.color1
-    : Theme.color0
+    ? Theme.surfaceHover
+    : Theme.surface
 
   property color buttonBorderColor: root.hovered
-    ? Theme.color8
-    : Theme.color0
+    ? Theme.borderFocus
+    : Theme.surface
 
-  property int buttonBorderWidth: 1
-  property real horizontalPadding: 6
-  property real verticalPadding: 2
+  property int buttonBorderWidth: Theme.borderWidth
+  property real horizontalPadding: Theme.radiusMd
+  property real verticalPadding: Theme.spaceXxs
 
   readonly property bool hovered: hoverHandler.hovered
   readonly property bool pressed: mouseArea.pressed
@@ -32,7 +32,7 @@ Rectangle {
   implicitWidth: (contentItem ? contentItem.implicitWidth : 0) + horizontalPadding * 2
   implicitHeight: (contentItem ? contentItem.implicitHeight : 0) + verticalPadding * 2
 
-  radius: 4
+  radius: Theme.radiusSm
 
   color: buttonColor
   border.width: buttonBorderWidth
@@ -44,35 +44,35 @@ Rectangle {
 
   Behavior on scale {
     NumberAnimation {
-      duration: 90
+      duration: Theme.motionQuick
       easing.type: Easing.OutQuad
     }
   }
 
   Behavior on opacity {
     NumberAnimation {
-      duration: 90
+      duration: Theme.motionQuick
       easing.type: Easing.OutQuad
     }
   }
 
   Behavior on color {
     ColorAnimation {
-      duration: 90
+      duration: Theme.motionQuick
       easing.type: Easing.OutQuad
     }
   }
 
   Behavior on border.color {
     ColorAnimation {
-      duration: 90
+      duration: Theme.motionQuick
       easing.type: Easing.OutQuad
     }
   }
 
   Behavior on border.width {
     NumberAnimation {
-      duration: 90
+      duration: Theme.motionQuick
       easing.type: Easing.OutQuad
     }
   }

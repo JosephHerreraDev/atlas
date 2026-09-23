@@ -4,7 +4,7 @@ import ".."
 Item {
   id: wrapper
 
-  property real margin: 2
+  property real margin: Theme.spaceXxs
   property bool borderEnabled: true
   required default property Item child
 
@@ -16,10 +16,10 @@ Item {
 
     anchors.fill: parent
 
-    color: Theme.color0
-    radius: 4
-    border.color: Theme.color9
-    border.width: wrapper.borderEnabled ? 1 : 0
+    color: Theme.surface
+    radius: Theme.radiusSm
+    border.color: Theme.borderStrong
+    border.width: wrapper.borderEnabled ? Theme.borderWidth : 0
 
     Item {
       anchors.fill: parent
