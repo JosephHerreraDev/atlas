@@ -18,25 +18,7 @@ Scope {
   property var themes: []
 
   readonly property int animationDuration: Theme.motionNormal - 20
-  readonly property var themePalettes: ({
-    "catppuccin": ["#f38ba8", "#a6e3a1", "#f9e2af", "#89b4fa", "#f5c2e7"],
-    "everforest": ["#e67e80", "#a7c080", "#dbbc7f", "#7fbbb3", "#d699b6"],
-    "ghost-pastel": ["#b37580", "#648ed0", "#e095b5", "#979fec", "#cd9dcf"],
-    "gotham-city": ["#d45a4a", "#6b8a72", "#d9b768", "#4a6b7c", "#8c6a7a"],
-    "gruvbox": ["#ea6962", "#a9b665", "#d8a657", "#7daea3", "#d3869b"],
-    "gruvu": ["#cc241d", "#b8bb26", "#d79921", "#83a598", "#d3869b"],
-    "inkypinky": ["#ea90a8", "#a6b2c7", "#d18ba2", "#7c7ca8", "#9f859f"],
-    "matte-black": ["#d35f5f", "#ffc107", "#b91c1c", "#e68e0d", "#d35f5f"],
-    "miasma": ["#685742", "#5f875f", "#b36d43", "#78824b", "#bb7744"],
-    "nord": ["#bf616a", "#a3be8c", "#ebcb8b", "#81a1c1", "#b48ead"],
-    "osaka-jade": ["#ff5345", "#549e6a", "#459451", "#509475", "#d2689c"],
-    "retro-82": ["#f85525", "#028391", "#e97b3c", "#faa968", "#3f8f8a"],
-    "ristretto": ["#fd6883", "#adda78", "#f9cc6c", "#f38d70", "#a8a9eb"],
-    "solitude": ["#565d60", "#9fa5a9", "#d9dbdc", "#798186", "#aeaeae"],
-    "tokyo-night": ["#f7768e", "#9ece6a", "#e0af68", "#7aa2f7", "#ad8ee6"],
-    "van-gogh": ["#d9822b", "#7fb3d5", "#f2e2a4", "#4a78a8", "#d9822b"],
-    "windows-dark-mode": ["#f85149", "#2ea043", "#bb8009", "#0078d4", "#c586c0"]
-  })
+  property var themePalettes: ({})
   property var filteredThemes: []
 
   function screenFocused(screen) {
@@ -71,7 +53,7 @@ Scope {
 
   function refresh(): void {
     if (!listProcess.running)
-      listProcess.exec(["theme-list"])
+      listProcess.exec(["theme-colors", "--all"])
   }
 
   function filter(): void {
@@ -104,9 +86,18 @@ Scope {
     id: listProcess
     stdout: StdioCollector {
       onStreamFinished: {
-        root.themes = text.split("\n").filter(function(name) {
-          return name.length > 0
+        const palettes = {}
+        const names = []
+        text.split("\n").forEach(function(line) {
+          if (line.length === 0)
+            return
+          const fields = line.split("|")
+          const name = fields.shift()
+          names.push(name)
+          palettes[name] = fields
         })
+        root.themePalettes = palettes
+        root.themes = names
         root.filter()
       }
     }

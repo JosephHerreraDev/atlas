@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
+THEMES_DIR="$ATLAS_PATH/themes"
+
+theme_colors() {
+  local theme_file="$1"
+
+  awk '
+    /^color[1-5] *=/ {
+      split($0, fields, "\"")
+      colors[++count] = fields[2]
+    }
+    END {
+      if (count != 5)
+        exit 1
+
+      printf "%s", colors[1]
+      for (i = 2; i <= count; i++)
+        printf "|%s", colors[i]
+      printf "\n"
+    }
+  ' "$theme_file"
+}
+
+if [[ ! -d "$THEMES_DIR" ]]; then
+  exit 0
+fi
+
+if [[ "${1:-}" == "--all" ]]; then
+  while IFS= read -r theme_file; do
+    theme="$(basename "$theme_file" .toml)"
+    printf '%s|' "$theme"
+    theme_colors "$theme_file"
+  done < <(find "$THEMES_DIR" -maxdepth 1 -type f -name '*.toml' | sort)
+  exit 0
+fi
+
+theme="${1:-}"
+if [[ -z "$theme" ]]; then
+  echo "Usage: theme-colors <theme>|--all" >&2
+  exit 1
+fi
+
+theme_file="$THEMES_DIR/$theme.toml"
+if [[ ! -f "$theme_file" ]]; then
+  echo "Theme does not exist: $theme_file" >&2
+  exit 1
+fi
+
+theme_colors "$theme_file"
