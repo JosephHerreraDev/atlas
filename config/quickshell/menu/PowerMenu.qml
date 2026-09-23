@@ -18,7 +18,7 @@ Scope {
   property int focusRequest: 0
 
   readonly property int animationDuration: Theme.motionNormal - 20
-  readonly property int actionSize: 52
+  readonly property int actionSize: 76
   readonly property int actionSpacing: Theme.radiusMd
   readonly property var actions: [
     { name: "Lock", description: "Lock the current session", icon: "lock.svg", command: ["hyprlock"] },
@@ -184,17 +184,33 @@ Scope {
                   ? Theme.borderWidth : 0
                 border.color: ListView.isCurrentItem ? Theme.selectionForeground : Theme.color3
 
-                IconImage {
+                Column {
                   anchors.centerIn: parent
-                  width: 24
-                  height: 24
-                  source: Qt.resolvedUrl("../assets/" + actionRow.modelData.icon)
-                  layer.enabled: true
-                  layer.effect: MultiEffect {
-                    brightness: 1
-                    colorization: 1
-                    colorizationColor: actionRow.ListView.isCurrentItem || actionMouse.containsMouse
+                  width: parent.width
+                  spacing: 3
+
+                  IconImage {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: 28
+                    height: 28
+                    source: Qt.resolvedUrl("../assets/" + actionRow.modelData.icon)
+                    layer.enabled: true
+                    layer.effect: MultiEffect {
+                      brightness: 1
+                      colorization: 1
+                      colorizationColor: actionRow.ListView.isCurrentItem || actionMouse.containsMouse
+                        ? Theme.selectionForeground : Theme.foreground
+                    }
+                  }
+
+                  Text {
+                    width: parent.width
+                    text: actionRow.modelData.name
+                    color: actionRow.ListView.isCurrentItem || actionMouse.containsMouse
                       ? Theme.selectionForeground : Theme.foreground
+                    font.pixelSize: Theme.fontBody
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
                   }
                 }
 
