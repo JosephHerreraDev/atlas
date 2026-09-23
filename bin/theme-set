@@ -88,8 +88,7 @@ mv "$NEXT_THEME_DIR" "$CURRENT_THEME_DIR"
 
 QUICKSHELL_THEME_DIR="$ATLAS_PATH/config/quickshell"
 mkdir -p "$QUICKSHELL_THEME_DIR"
-cp "$CURRENT_THEME_DIR/Theme.qml" "$CURRENT_THEME_DIR/qmldir" \
-  "$QUICKSHELL_THEME_DIR/"
+cp "$CURRENT_THEME_DIR/ThemeColors.json" "$QUICKSHELL_THEME_DIR/"
 
 theme-refresh
 
