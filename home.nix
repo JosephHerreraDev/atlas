@@ -30,12 +30,20 @@ in
 
   home.packages = with pkgs; [
     cava
-    kitty
-    neovim 
-    quickshell
-    tree-sitter
-    tmux 
-    zathura 
+      kitty
+      neovim
+      quickshell
+      tree-sitter
+      tmux
+      zathura
+      (pkgs.writeShellApplication {
+       name = "ns";
+       runtimeInputs = with pkgs; [
+       fzf
+       nix-search-tv
+       ];
+       text = builtins.readFile "${pkgs.nix-search-tv.src}/nixpkgs.sh";
+       })
   ];
 
   home.sessionVariables = {
