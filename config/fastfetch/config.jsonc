@@ -44,7 +44,8 @@
         },
         {
             "key": "│ {#31} term    {#keys}│",
-            "type": "terminal"
+            "type": "custom",
+            "format": "kitty"
         },
         {
             "key": "│ {#32} shell   {#keys}│",
