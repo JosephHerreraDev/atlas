@@ -47,9 +47,9 @@ printf '\n'
 
 printf 'Installing Atlas for %s in %s\n' "${ATLAS_USER}" "${INSTALL_DIR}"
 
-if [[ "${SOURCE_DIR}" != "${INSTALL_DIR}" ]]; then
+if [[ "${SOURCE_DIR}" != "${INSTALL_DIR}" && ! -e "${INSTALL_DIR}" && ! -L "${INSTALL_DIR}" ]]; then
   mkdir -p -- "$(dirname -- "${INSTALL_DIR}")"
-  mkdir -p -- "${INSTALL_DIR}"
+  mkdir -- "${INSTALL_DIR}"
   cp -a -- "${SOURCE_DIR}/." "${INSTALL_DIR}/"
 fi
 
