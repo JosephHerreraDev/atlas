@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, atlasUser, atlasHome, ... }:
 
 let
 atlasPath = "${config.home.homeDirectory}/.local/share/atlas";
@@ -19,8 +19,8 @@ configs = {
 in
 
 {
-  home.username = "joe";
-  home.homeDirectory = "/home/joe";
+  home.username = atlasUser;
+  home.homeDirectory = atlasHome;
   home.stateVersion = "26.05";
 
   imports = [
@@ -62,7 +62,7 @@ in
     '';
 
     shellAliases = {
-      nrs = "sudo nixos-rebuild switch --impure --flake ~/.local/share/atlas#atlas";
+      nrs = "sudo env ATLAS_USER=${atlasUser} ATLAS_HOME=${atlasHome} nixos-rebuild switch --impure --flake ${atlasPath}#atlas";
     };
   };
 

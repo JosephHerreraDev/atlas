@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, atlasUser, ... }:
 
 {
   imports =
@@ -47,7 +47,7 @@
 
   services.blueman.enable = true;
 
-  users.users.joe = {
+  users.users.${atlasUser} = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" "video" ];
     packages = with pkgs; [

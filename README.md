@@ -7,6 +7,18 @@
 
 A modern, minimal, keyboard-centric NixOS configuration designed for speed, simplicity, and a focused workflow.
 
+## Installation
+
+From a local checkout, run the installer as your normal user:
+
+```bash
+./install.sh
+```
+
+The installer copies Atlas to `~/.local/share/atlas`, rebuilds NixOS and Home
+Manager for the current user, and initializes the Nord theme. Log out and back
+in after it finishes to start the configured Hyprland session.
+
 ## Repository layout
 
 | Path | Purpose |
