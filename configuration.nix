@@ -5,6 +5,7 @@
     [
       /etc/nixos/hardware-configuration.nix
       ./modules/nvidia.nix
+      ./modules/plymouth.nix
       ./modules/sddm.nix
     ];
 
