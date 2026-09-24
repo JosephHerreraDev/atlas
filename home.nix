@@ -13,7 +13,6 @@ configs = {
   kitty = "kitty";
   nvim = "nvim";
   quickshell = "quickshell";
-  starship = "starship";
   tmux = "tmux";
   zathura = "zathura";
 };
@@ -64,9 +63,12 @@ in
     enableBashIntegration = true;
   };
 
-  xdg.configFile = builtins.mapAttrs
+  xdg.configFile = (builtins.mapAttrs
     (name: subpath: {
-     source = create_symlink "${dotfiles}/${subpath}";
-     })
-  configs;
+      source = create_symlink "${dotfiles}/${subpath}";
+    })
+    configs) // {
+      "starship.toml".source =
+        create_symlink "${dotfiles}/starship/starship.toml";
+    };
 }
