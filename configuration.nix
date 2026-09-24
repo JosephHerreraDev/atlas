@@ -5,6 +5,7 @@
     [
       /etc/nixos/hardware-configuration.nix
       ./modules/nvidia.nix
+      ./modules/sddm.nix
     ];
 
   boot.loader.systemd-boot.enable = true;
@@ -28,11 +29,6 @@
       sansSerif = [ "Noto Sans" ];
       serif = [ "Noto Serif" ];
     };
-  };
-
-  services.displayManager.sddm = {
-    enable = true;
-    wayland.enable = false;
   };
 
   programs.hyprland = {

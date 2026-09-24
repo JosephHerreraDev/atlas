@@ -1,0 +1,12 @@
+[SddmGreeterTheme]
+Name=Atlas Silent
+Type=sddm-theme
+Description=A very customizable SDDM theme that actually looks good.
+License=GPL-3.0-or-later
+Version=1.5.0
+Theme-Id=atlas
+Theme-API=2.0
+MainScript=Main.qml
+QtVersion=6
+
+ConfigFile=configs/default.conf
