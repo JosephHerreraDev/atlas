@@ -13,8 +13,11 @@ A modern, minimal, keyboard-centric NixOS configuration designed for speed, simp
 curl -fsSL https://raw.githubusercontent.com/JosephHerreraDev/atlas/main/install.sh | bash
 ```
 
-From a local checkout, run the installer as your normal user:
+This downloads a temporary copy of the repository, installs Atlas into
+`~/.local/share/atlas`, and removes the temporary files afterward. Run it as
+your normal user, not as root.
 
+Alternatively, from a local checkout run:
 
 ```bash
 ./install.sh

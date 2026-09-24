@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-readonly SOURCE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+readonly REPOSITORY_ARCHIVE="https://github.com/JosephHerreraDev/atlas/archive/refs/heads/main.tar.gz"
 readonly INSTALL_DIR="${HOME}/.local/share/atlas"
 readonly ATLAS_USER="$(id -un)"
 readonly ATLAS_HOME="${HOME}"
@@ -17,6 +17,26 @@ if ((EUID == 0)); then
 fi
 
 [[ -e /etc/NIXOS ]] || die "Atlas can only be installed on NixOS"
+
+# A script read from standard input has no path, so it cannot access the rest
+# of the repository. Download a temporary checkout and restart from there.
+if [[ -z "${BASH_SOURCE[0]:-}" ]]; then
+  for command_name in curl mktemp tar; do
+    command -v "${command_name}" >/dev/null || die "required command not found: ${command_name}"
+  done
+
+  bootstrap_dir="$(mktemp -d)"
+  trap 'rm -rf -- "${bootstrap_dir}"' EXIT
+
+  printf 'Downloading Atlas...\n'
+  curl -fsSL "${REPOSITORY_ARCHIVE}" |
+    tar -xz --strip-components=1 -C "${bootstrap_dir}"
+
+  bash "${bootstrap_dir}/install.sh"
+  exit
+fi
+
+readonly SOURCE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 
 for command_name in cat cp nixos-rebuild sudo; do
   command -v "${command_name}" >/dev/null || die "required command not found: ${command_name}"
