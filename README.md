@@ -9,7 +9,12 @@ A modern, minimal, keyboard-centric NixOS configuration designed for speed, simp
 
 ## Installation
 
+```bash
+curl -fsSL https://raw.githubusercontent.com/JosephHerreraDev/atlas/main/install.sh | bash
+```
+
 From a local checkout, run the installer as your normal user:
+
 
 ```bash
 ./install.sh
