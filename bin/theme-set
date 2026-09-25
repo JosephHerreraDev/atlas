@@ -5,7 +5,6 @@ set -euo pipefail
 ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
 
 THEMES_DIR="$ATLAS_PATH/themes"
-WALLPAPERS_DIR="$HOME/Pictures/wallpapers/themes"
 
 STYLE_DIR="$HOME/.config/style"
 CURRENT_THEME_DIR="$STYLE_DIR/current"
@@ -18,8 +17,9 @@ if [[ -z "$theme" ]]; then
   exit 1
 fi
 
-THEME_FILE="$THEMES_DIR/$theme.toml"
-THEME_WALLPAPERS_DIR="$WALLPAPERS_DIR/$theme"
+THEME_DIR="$THEMES_DIR/$theme"
+THEME_FILE="$THEME_DIR/colors.toml"
+THEME_WALLPAPERS_DIR="$THEME_DIR/wallpapers"
 
 # Validate theme
 if [[ ! -f "$THEME_FILE" ]]; then

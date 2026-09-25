@@ -2,7 +2,9 @@
 
 set -euo pipefail
 
-wallpapers_dir="$(realpath "${HOME}/Pictures/wallpapers")"
+ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
+general_wallpapers_dir="$(realpath -m "$HOME/Pictures/wallpapers")"
+theme_wallpapers_dir="$(realpath -m "$ATLAS_PATH/themes")"
 wallpaper="${1:-}"
 
 if [[ -z "$wallpaper" || ! -f "$wallpaper" ]]; then
@@ -12,9 +14,9 @@ fi
 
 wallpaper="$(realpath "$wallpaper")"
 case "$wallpaper" in
-  "$wallpapers_dir"/*) ;;
+  "$general_wallpapers_dir"/* | "$theme_wallpapers_dir"/*/wallpapers/*) ;;
   *)
-    echo "Wallpaper is outside the wallpaper library: $wallpaper" >&2
+    echo "Wallpaper is outside the general or theme wallpaper directories: $wallpaper" >&2
     exit 1
     ;;
 esac

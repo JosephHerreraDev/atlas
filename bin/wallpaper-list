@@ -2,18 +2,18 @@
 
 set -euo pipefail
 
-wallpapers_dir="${HOME}/Pictures/wallpapers"
+ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
 mode="${1:-general}"
 
 case "$mode" in
   general)
-    search_dir="$wallpapers_dir/general"
+    search_dir="$HOME/Pictures/wallpapers"
     ;;
   theme)
     theme_file="${HOME}/.config/style/current/theme"
     [[ -f "$theme_file" ]] || exit 0
     theme="$(<"$theme_file")"
-    search_dir="$wallpapers_dir/themes/$theme"
+    search_dir="$ATLAS_PATH/themes/$theme/wallpapers"
     ;;
   *)
     echo "Usage: wallpaper-list [general|theme]" >&2

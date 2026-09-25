@@ -31,10 +31,10 @@ fi
 
 if [[ "${1:-}" == "--all" ]]; then
   while IFS= read -r theme_file; do
-    theme="$(basename "$theme_file" .toml)"
+    theme="$(basename "$(dirname "$theme_file")")"
     printf '%s|' "$theme"
     theme_colors "$theme_file"
-  done < <(find "$THEMES_DIR" -maxdepth 1 -type f -name '*.toml' | sort)
+  done < <(find "$THEMES_DIR" -mindepth 2 -maxdepth 2 -type f -name 'colors.toml' | sort)
   exit 0
 fi
 
@@ -44,7 +44,7 @@ if [[ -z "$theme" ]]; then
   exit 1
 fi
 
-theme_file="$THEMES_DIR/$theme.toml"
+theme_file="$THEMES_DIR/$theme/colors.toml"
 if [[ ! -f "$theme_file" ]]; then
   echo "Theme does not exist: $theme_file" >&2
   exit 1

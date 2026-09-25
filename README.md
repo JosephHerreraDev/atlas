@@ -33,11 +33,15 @@ in after it finishes to start the configured Hyprland session.
 | --- | --- |
 | `bin/` | Scripts |
 | `config/` | Application and desktop configuration |
-| `modules/` | NVIDIA, GTK theme, and wallpaper modules |
-| `themes/` | Color palettes and application templates |
+| `modules/` | NVIDIA and desktop appearance modules |
+| `themes/` | Theme color palettes, bundled wallpapers, and application templates |
 | `configuration.nix` | NixOS system configuration and packages |
 | `flake.nix` | Flake configuration for global package versioning |
 | `home.nix` | Home Manager configuration and live config symlinks |
+
+Theme-specific wallpapers are bundled under `themes/<theme>/wallpapers`.
+General wallpapers can be added locally under `~/Pictures/wallpapers`;
+Atlas does not download a separate wallpaper collection.
 
 ## Keybindings
 

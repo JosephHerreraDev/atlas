@@ -25,7 +25,6 @@ in
 
   imports = [
     ./modules/theme.nix
-      ./modules/wallpapers.nix
   ];
 
   home.packages = with pkgs; [

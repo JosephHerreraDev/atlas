@@ -58,8 +58,8 @@ fi
 sudo env "ATLAS_USER=${ATLAS_USER}" "ATLAS_HOME=${ATLAS_HOME}" \
   nixos-rebuild switch --impure --flake "${INSTALL_DIR}#atlas"
 
-# Home Manager installs the wallpaper library during the rebuild. Use the
-# installed scripts directly because the updated session PATH needs a new shell.
+# Use the installed scripts directly because the updated session PATH needs a
+# new shell.
 export ATLAS_PATH="${INSTALL_DIR}"
 export PATH="${INSTALL_DIR}/bin:${PATH}"
 theme-set nord
