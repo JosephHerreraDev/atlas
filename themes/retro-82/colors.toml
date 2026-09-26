@@ -14,7 +14,7 @@ background = "#05182e"
 selection_foreground = "#00172e"
 selection_background = "#faa968"
 
-# Normal colors (ANSI 0-7)
+# Normal colors
 color0 = "#00172e"
 color1 = "#f85525"
 color2 = "#028391"
@@ -24,7 +24,7 @@ color5 = "#3f8f8a"
 color6 = "#8cbfb8"
 color7 = "#a7c9c6"
 
-# Bright colors (ANSI 8-15)
+# Bright colors
 color8 = "#134e5a"
 color9 = "#f85525"
 color10 = "#028391"
