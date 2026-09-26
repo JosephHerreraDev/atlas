@@ -10,6 +10,10 @@ Pill {
   required property var notifications
 
   function togglePanel(): void {
+    systemButton.panelVisible = !systemButton.panelVisible
+  }
+
+  function toggleTray(): void {
     systemTray.toggle()
   }
 

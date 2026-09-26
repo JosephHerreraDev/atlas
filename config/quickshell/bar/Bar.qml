@@ -10,9 +10,18 @@ Scope {
 
   property QtObject systemState
   required property var notifications
+  signal systemMenuToggleRequested()
   signal systemTrayToggleRequested()
   signal screenshotMenuToggleRequested()
   signal clipboardMenuToggleRequested(var opened)
+
+  IpcHandler {
+    target: "system-menu"
+
+    function toggle(): void {
+      root.systemMenuToggleRequested()
+    }
+  }
 
   IpcHandler {
     target: "system-tray"
@@ -154,9 +163,14 @@ Scope {
         Connections {
           target: root
 
-          function onSystemTrayToggleRequested(): void {
+          function onSystemMenuToggleRequested(): void {
             if (Hyprland.monitorFor(modelData) === Hyprland.focusedMonitor)
               system.togglePanel()
+          }
+
+          function onSystemTrayToggleRequested(): void {
+            if (Hyprland.monitorFor(modelData) === Hyprland.focusedMonitor)
+              system.toggleTray()
           }
 
           function onScreenshotMenuToggleRequested(): void {

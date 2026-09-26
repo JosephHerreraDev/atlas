@@ -23,6 +23,8 @@ Item {
   property string wifiConnectionMessage: ""
   property string pendingBluetoothForgetAddress: ""
   property string bluetoothPairingAddress: ""
+  property string bluetoothActionStage: ""
+  property string bluetoothActionDeviceName: ""
   property string bluetoothPairingMessage: ""
   readonly property int spaceXs: Theme.spaceXs
   readonly property int spaceSm: Theme.spaceSm
@@ -48,7 +50,7 @@ Item {
   readonly property var closeBluetoothDevices: bluetoothDeviceList("close")
   readonly property var audioOutputs: audioDeviceList("output")
   readonly property var audioInputs: audioDeviceList("input")
-  readonly property var audioDevices: audioOutputs.concat(audioInputs)
+  readonly property var audioDevices: trackableAudioDeviceList()
   readonly property var defaultAudioInput: Pipewire.defaultAudioSource
   readonly property bool defaultAudioInputMuted:
     defaultAudioInput?.audio.muted ?? true
@@ -157,6 +159,7 @@ Item {
     const shouldDiscover = panelVisible
       && activeSection === "bluetooth"
       && bluetoothAdapter.enabled
+      && bluetoothPairingAddress === ""
     if (bluetoothAdapter.discovering !== shouldDiscover)
       bluetoothAdapter.discovering = shouldDiscover
   }
@@ -197,19 +200,65 @@ Item {
       return
 
     bluetoothPairingAddress = device.address
-    bluetoothPairingMessage = ""
+    bluetoothActionDeviceName = bluetoothDeviceName(device)
+    bluetoothPairingMessage = "Pairing with "
+      + bluetoothActionDeviceName + "…"
+    bluetoothActionStage = "pair"
+    updateBluetoothDiscovery()
     bluetoothPairingProcess.exec([
-      "bluetoothctl", "--timeout", "30", "--agent", "NoInputNoOutput",
+      "bluetoothctl", "--timeout", "45", "--agent", "NoInputNoOutput",
       "pair", device.address
     ])
+  }
+
+  function connectBluetoothDevice(device) {
+    if (bluetoothPairingProcess.running)
+      return
+
+    bluetoothPairingAddress = device.address
+    bluetoothActionDeviceName = bluetoothDeviceName(device)
+    bluetoothPairingMessage = "Connecting to "
+      + bluetoothActionDeviceName + "…"
+    bluetoothActionStage = "trust"
+    device.blocked = false
+    updateBluetoothDiscovery()
+    bluetoothPairingProcess.exec([
+      "bluetoothctl", "--timeout", "15", "trust", device.address
+    ])
+  }
+
+  function bluetoothDeviceByAddress(address) {
+    if (!bluetoothAdapter)
+      return null
+    for (const device of bluetoothAdapter.devices.values) {
+      if (device.address === address)
+        return device
+    }
+    return null
+  }
+
+  function finishBluetoothAction(message) {
+    bluetoothPairingAddress = ""
+    bluetoothActionStage = ""
+    bluetoothActionDeviceName = ""
+    bluetoothPairingMessage = message
+    updateBluetoothDiscovery()
   }
 
   function cancelBluetoothPairing(device) {
     bluetoothPairingProcess.running = false
     if (device.pairing)
       device.cancelPair()
-    bluetoothPairingAddress = ""
-    bluetoothPairingMessage = "Pairing canceled"
+    finishBluetoothAction("Pairing canceled")
+  }
+
+  function trackableAudioDeviceList() {
+    const result = []
+    for (const node of Pipewire.nodes.values) {
+      if (!node.isStream && node.audio !== null)
+        result.push(node)
+    }
+    return result
   }
 
   function audioDeviceList(direction) {
@@ -247,6 +296,8 @@ Item {
   }
 
   function audioDeviceName(node, fallback) {
+    if (!node)
+      return fallback
     return node.nickname || node.description || node.name || fallback
   }
 
@@ -293,12 +344,47 @@ Item {
       if (root.bluetoothPairingAddress === "")
         return
 
-      if (exitCode !== 0)
-        root.bluetoothPairingMessage
-          = "Could not pair. Put the device in pairing mode and try again."
+      const address = root.bluetoothPairingAddress
+      const device = root.bluetoothDeviceByAddress(address)
+      if (exitCode !== 0) {
+        const action = root.bluetoothActionStage === "pair"
+          ? "pair with " : "connect to "
+        root.finishBluetoothAction("Could not " + action
+          + root.bluetoothActionDeviceName
+          + ". Put the device in pairing mode and try again.")
+        return
+      }
 
-      root.bluetoothPairingAddress = ""
-      root.updateBluetoothDiscovery()
+      if (root.bluetoothActionStage === "pair") {
+        root.bluetoothActionStage = "trust"
+        root.bluetoothPairingMessage = "Trusting "
+          + root.bluetoothActionDeviceName + "…"
+        bluetoothPairingProcess.exec([
+          "bluetoothctl", "--timeout", "15", "trust", address
+        ])
+        return
+      }
+
+      if (root.bluetoothActionStage === "trust") {
+        if (device) {
+          device.blocked = false
+          device.trusted = true
+        }
+        if (device?.connected ?? false) {
+          root.finishBluetoothAction("")
+          return
+        }
+
+        root.bluetoothActionStage = "connect"
+        root.bluetoothPairingMessage = "Connecting to "
+          + root.bluetoothActionDeviceName + "…"
+        bluetoothPairingProcess.exec([
+          "bluetoothctl", "--timeout", "30", "connect", address
+        ])
+        return
+      }
+
+      root.finishBluetoothAction("")
     }
   }
 
@@ -523,8 +609,10 @@ Item {
         ? internetColumn.implicitHeight
         : root.activeSection === "bluetooth"
           ? bluetoothColumn.implicitHeight
-        : root.activeSection === "sound"
-          ? soundColumn.implicitHeight
+        : root.activeSection === "soundOutput"
+          ? outputColumn.implicitHeight
+        : root.activeSection === "soundInput"
+          ? inputColumn.implicitHeight
         : panelColumn.implicitHeight
 
       Column {
@@ -620,129 +708,209 @@ Item {
           }
         }
 
-        RowLayout {
+        Rectangle {
           width: parent.width
-          spacing: root.spaceSm
+          implicitHeight: audioSectionColumn.implicitHeight + root.spaceMd * 2
+          radius: Theme.radiusSm
+          color: Theme.background
+          border.width: Theme.borderWidth
+          border.color: Theme.color2
 
-          Button {
-            Layout.preferredWidth: 30
-            Layout.preferredHeight: root.controlHeight
-            enabled: volume.sink !== null
-            horizontalPadding: 0
-            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
-            onClicked: volume.sink.audio.muted = !volume.sink.audio.muted
+          Column {
+            id: audioSectionColumn
 
-            Volume {
-              id: volume
-              width: 18
-              height: 14
-              anchors.centerIn: parent
-            }
-          }
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: root.spaceMd
+            spacing: root.spaceSm
 
-          Slider {
-            Layout.fillWidth: true
-            value: volume.volume
-            onMoved: function(value) {
-              if (!volume.sink)
-                return
-              volume.sink.audio.volume = value
-              if (value > 0)
-                volume.sink.audio.muted = false
-            }
-            onWheelMoved: function(up) {
-              if (!volume.sink)
-                return
-              const value = Math.max(0, Math.min(1,
-                volume.volume + (up ? 0.02 : -0.02)))
-              volume.sink.audio.volume = value
-              if (value > 0)
-                volume.sink.audio.muted = false
-            }
-          }
+            RowLayout {
+              width: parent.width
+              spacing: root.spaceSm
 
-          Button {
-            Layout.preferredWidth: 30
-            Layout.preferredHeight: root.controlHeight
-            horizontalPadding: 0
-            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
-            onClicked: root.activeSection = "sound"
+              Button {
+                Layout.preferredWidth: 30
+                Layout.preferredHeight: root.controlHeight
+                enabled: volume.sink !== null
+                horizontalPadding: 0
+                buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+                onClicked: volume.sink.audio.muted = !volume.sink.audio.muted
 
-            Text {
-              anchors.centerIn: parent
-              text: "›"
-              color: Theme.foreground
-              font.pixelSize: root.titleFontSize
-            }
-          }
-        }
+                Volume {
+                  id: volume
+                  width: 18
+                  height: 14
+                  anchors.centerIn: parent
+                }
+              }
 
-        RowLayout {
-          width: parent.width
-          spacing: root.spaceSm
-
-          Button {
-            Layout.preferredWidth: 30
-            Layout.preferredHeight: root.controlHeight
-            enabled: root.defaultAudioInput !== null
-            horizontalPadding: 0
-            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
-            onClicked: root.defaultAudioInput.audio.muted
-              = !root.defaultAudioInput.audio.muted
-
-            IconImage {
-              anchors.centerIn: parent
-              width: 18
-              height: 14
-              source: Qt.resolvedUrl("../assets/microphone.svg")
-
-              layer.enabled: true
-              layer.effect: MultiEffect {
-                brightness: 1
-                colorization: 1
-                colorizationColor: root.defaultAudioInputMuted
-                  ? Theme.color11
-                  : Theme.foreground
+              Slider {
+                Layout.fillWidth: true
+                value: volume.volume
+                onMoved: function(value) {
+                  if (!volume.sink)
+                    return
+                  volume.sink.audio.volume = value
+                  if (value > 0)
+                    volume.sink.audio.muted = false
+                }
+                onWheelMoved: function(up) {
+                  if (!volume.sink)
+                    return
+                  const value = Math.max(0, Math.min(1,
+                    volume.volume + (up ? 0.02 : -0.02)))
+                  volume.sink.audio.volume = value
+                  if (value > 0)
+                    volume.sink.audio.muted = false
+                }
               }
             }
-          }
 
-          Slider {
-            Layout.fillWidth: true
-            enabled: root.defaultAudioInput !== null
-            value: root.defaultAudioInput?.audio.volume ?? 0
-            indicatorValue: {
-              const noiseFloor = 0.12
-              if (inputPeakMonitor.peak <= noiseFloor)
-                return 0
-              return Math.min(1,
-                (inputPeakMonitor.peak - noiseFloor) / (1 - noiseFloor))
-            }
-            indicatorVisible: inputPeakMonitor.enabled
-            indicatorColor: Theme.foreground
-            opacity: enabled ? 1 : 0.5
+            RowLayout {
+              width: parent.width
+              spacing: root.spaceSm
 
-            onMoved: function(value) {
-              if (!root.defaultAudioInput)
-                return
-              root.defaultAudioInput.audio.volume = value
-              if (value > 0)
-                root.defaultAudioInput.audio.muted = false
-            }
-            onWheelMoved: function(up) {
-              if (!root.defaultAudioInput)
-                return
-              const value = Math.max(0, Math.min(1,
-                root.defaultAudioInput.audio.volume + (up ? 0.02 : -0.02)))
-              root.defaultAudioInput.audio.volume = value
-              if (value > 0)
-                root.defaultAudioInput.audio.muted = false
-            }
-          }
+              Button {
+                Layout.preferredWidth: 30
+                Layout.preferredHeight: root.controlHeight
+                enabled: root.defaultAudioInput !== null
+                horizontalPadding: 0
+                buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+                onClicked: root.defaultAudioInput.audio.muted
+                  = !root.defaultAudioInput.audio.muted
 
-          Item {
-            Layout.preferredWidth: 30
-            Layout.preferredHeight: root.controlHeight
+                IconImage {
+                  anchors.centerIn: parent
+                  width: 18
+                  height: 14
+                  source: Qt.resolvedUrl("../assets/microphone.svg")
+
+                  layer.enabled: true
+                  layer.effect: MultiEffect {
+                    brightness: 1
+                    colorization: 1
+                    colorizationColor: root.defaultAudioInputMuted
+                      ? Theme.color11
+                      : Theme.foreground
+                  }
+                }
+              }
+
+              Slider {
+                Layout.fillWidth: true
+                enabled: root.defaultAudioInput !== null
+                value: root.defaultAudioInput?.audio.volume ?? 0
+                indicatorValue: {
+                  const noiseFloor = 0.12
+                  if (inputPeakMonitor.peak <= noiseFloor)
+                    return 0
+                  return Math.min(1,
+                    (inputPeakMonitor.peak - noiseFloor) / (1 - noiseFloor))
+                }
+                indicatorVisible: inputPeakMonitor.enabled
+                indicatorColor: Theme.foreground
+                opacity: enabled ? 1 : 0.5
+
+                onMoved: function(value) {
+                  if (!root.defaultAudioInput)
+                    return
+                  root.defaultAudioInput.audio.volume = value
+                  if (value > 0)
+                    root.defaultAudioInput.audio.muted = false
+                }
+                onWheelMoved: function(up) {
+                  if (!root.defaultAudioInput)
+                    return
+                  const value = Math.max(0, Math.min(1,
+                    root.defaultAudioInput.audio.volume + (up ? 0.02 : -0.02)))
+                  root.defaultAudioInput.audio.volume = value
+                  if (value > 0)
+                    root.defaultAudioInput.audio.muted = false
+                }
+              }
+            }
+
+            Rectangle {
+              width: parent.width
+              height: 1
+              color: Theme.color2
+            }
+
+            RowLayout {
+              width: parent.width
+              spacing: root.spaceSm
+
+              Button {
+                Layout.fillWidth: true
+                Layout.preferredWidth: 0
+                Layout.preferredHeight: 42
+                enabled: Pipewire.ready
+                buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+                onClicked: root.activeSection = "soundOutput"
+
+                Column {
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.leftMargin: root.spaceSm
+                  anchors.rightMargin: root.spaceSm
+                  spacing: 1
+
+                  Text {
+                    width: parent.width
+                    text: "Output"
+                    color: Theme.color5
+                    font.pixelSize: root.captionFontSize
+                    elide: Text.ElideRight
+                  }
+
+                  Text {
+                    width: parent.width
+                    text: root.audioDeviceName(
+                      Pipewire.defaultAudioSink, "No output device")
+                    color: Theme.foreground
+                    font.pixelSize: root.bodyFontSize
+                    elide: Text.ElideRight
+                  }
+                }
+              }
+
+              Button {
+                Layout.fillWidth: true
+                Layout.preferredWidth: 0
+                Layout.preferredHeight: 42
+                enabled: Pipewire.ready
+                buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+                onClicked: root.activeSection = "soundInput"
+
+                Column {
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.leftMargin: root.spaceSm
+                  anchors.rightMargin: root.spaceSm
+                  spacing: 1
+
+                  Text {
+                    width: parent.width
+                    text: "Input"
+                    color: Theme.color5
+                    font.pixelSize: root.captionFontSize
+                    elide: Text.ElideRight
+                  }
+
+                  Text {
+                    width: parent.width
+                    text: root.audioDeviceName(
+                      Pipewire.defaultAudioSource, "No input device")
+                    color: Theme.foreground
+                    font.pixelSize: root.bodyFontSize
+                    elide: Text.ElideRight
+                  }
+                }
+              }
+            }
           }
         }
 
@@ -764,6 +932,7 @@ Item {
 
           Slider {
             Layout.fillWidth: true
+            Layout.rightMargin: root.spaceSm
             from: 0.01
             value: brightness.brightness
             onMoved: function(value) {
@@ -776,11 +945,6 @@ Item {
               brightness.setBrightness(value)
               OsdState.show("brightness", value)
             }
-          }
-
-          Item {
-            Layout.preferredWidth: 30
-            Layout.preferredHeight: root.controlHeight
           }
         }
 
@@ -914,11 +1078,11 @@ Item {
       }
 
       Column {
-        id: soundColumn
+        id: outputColumn
 
         width: parent.width
         spacing: root.spaceSm
-        enabled: root.activeSection === "sound"
+        enabled: root.activeSection === "soundOutput"
         opacity: enabled ? 1 : 0
         visible: opacity > 0
 
@@ -951,7 +1115,7 @@ Item {
 
           Text {
             Layout.fillWidth: true
-            text: "Sound"
+            text: "Output"
             color: Theme.foreground
             font.pixelSize: root.titleFontSize
             font.weight: Theme.weightStrong
@@ -978,14 +1142,6 @@ Item {
           spacing: root.spaceSm
           visible: Pipewire.ready
 
-          Text {
-            width: parent.width
-            text: "Output"
-            color: Theme.foreground
-            font.pixelSize: root.captionFontSize
-            font.weight: Theme.weightStrong
-          }
-
           Repeater {
             model: root.audioOutputs
 
@@ -996,7 +1152,7 @@ Item {
               readonly property bool selected:
                 modelData === Pipewire.defaultAudioSink
 
-              width: soundColumn.width
+              width: outputColumn.width
               implicitHeight: root.listRowHeight
               enabled: modelData.ready
               buttonBorderColor: selected
@@ -1038,19 +1194,73 @@ Item {
             horizontalAlignment: Text.AlignHCenter
           }
 
-          Rectangle {
-            width: parent.width
-            height: 1
-            color: Theme.color2
+        }
+      }
+
+      Column {
+        id: inputColumn
+
+        width: parent.width
+        spacing: root.spaceSm
+        enabled: root.activeSection === "soundInput"
+        opacity: enabled ? 1 : 0
+        visible: opacity > 0
+
+        Behavior on opacity {
+          NumberAnimation {
+            duration: root.motionFast
+            easing.type: Easing.OutCubic
+          }
+        }
+
+        RowLayout {
+          width: parent.width
+          height: root.controlHeight
+          spacing: root.spaceSm
+
+          Button {
+            Layout.preferredWidth: 24
+            Layout.preferredHeight: root.controlHeight
+            horizontalPadding: 0
+            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+            onClicked: root.activeSection = "settings"
+
+            Text {
+              anchors.centerIn: parent
+              text: "‹"
+              color: Theme.foreground
+              font.pixelSize: root.titleFontSize
+            }
           }
 
           Text {
-            width: parent.width
+            Layout.fillWidth: true
             text: "Input"
             color: Theme.foreground
-            font.pixelSize: root.captionFontSize
+            font.pixelSize: root.titleFontSize
             font.weight: Theme.weightStrong
           }
+        }
+
+        Rectangle {
+          width: parent.width
+          height: 1
+          color: Theme.color2
+        }
+
+        Text {
+          width: parent.width
+          visible: !Pipewire.ready
+          text: "Sound devices are unavailable"
+          color: Theme.color2
+          font.pixelSize: root.captionFontSize
+          horizontalAlignment: Text.AlignHCenter
+        }
+
+        Column {
+          width: parent.width
+          spacing: root.spaceSm
+          visible: Pipewire.ready
 
           Repeater {
             model: root.audioInputs
@@ -1062,7 +1272,7 @@ Item {
               readonly property bool selected:
                 modelData === Pipewire.defaultAudioSource
 
-              width: soundColumn.width
+              width: inputColumn.width
               implicitHeight: root.listRowHeight
               enabled: modelData.ready
               buttonBorderColor: selected
@@ -1717,8 +1927,9 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: root.listRowHeight
                 enabled: modelData.state === BluetoothService.BluetoothDeviceState.Disconnected
+                  && !bluetoothPairingProcess.running
                 buttonBorderColor: hovered ? Theme.color8 : Theme.color2
-                onClicked: modelData.connect()
+                onClicked: root.connectBluetoothDevice(modelData)
 
                 RowLayout {
                   anchors.fill: parent
@@ -1734,7 +1945,9 @@ Item {
                   }
 
                   Text {
-                    text: root.bluetoothDeviceActionText(modelData, "Connect")
+                    text: root.bluetoothPairingAddress === modelData.address
+                      ? "Connecting…"
+                      : root.bluetoothDeviceActionText(modelData, "Connect")
                     color: Theme.color8
                     font.pixelSize: root.captionFontSize
                   }
