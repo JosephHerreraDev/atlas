@@ -10,14 +10,13 @@ Pill {
   required property var notifications
 
   function togglePanel(): void {
-    systemButton.panelVisible = !systemButton.panelVisible
+    systemTray.toggle()
   }
 
   RowLayout {
     spacing: 0
     SystemTray{
       id: systemTray
-      popupAnchor: root
     }
     SystemButton{
       id: systemButton
