@@ -33,9 +33,9 @@ Item {
     layer.effect: MultiEffect {
       brightness: 1
       colorization: 1
-      colorizationColor: Theme.foreground
-    }
+    colorizationColor: root.muted ? Theme.color11 : Theme.foreground
   }
+}
 
   PwObjectTracker {
     objects: [root.sink]

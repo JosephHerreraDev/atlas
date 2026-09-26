@@ -7,6 +7,9 @@ Item {
   property real from: 0
   property real to: 1
   property real value: 0
+  property real indicatorValue: 0
+  property bool indicatorVisible: false
+  property color indicatorColor: Theme.color14
 
   signal moved(real value)
   signal wheelMoved(bool up)
@@ -19,6 +22,12 @@ Item {
     if (range <= 0)
       return 0
     return Math.max(0, Math.min(1, (displayValue - from) / range))
+  }
+  readonly property real indicatorPosition: {
+    const range = to - from
+    if (range <= 0)
+      return 0
+    return Math.max(0, Math.min(1, (indicatorValue - from) / range))
   }
 
   implicitWidth: 140
@@ -41,6 +50,23 @@ Item {
       height: parent.height
       radius: parent.radius
       color: Theme.color8
+    }
+
+    Rectangle {
+      anchors.left: parent.left
+      anchors.bottom: parent.bottom
+      width: parent.width * root.indicatorPosition
+      height: parent.height
+      radius: height / 2
+      visible: root.indicatorVisible
+      color: root.indicatorColor
+
+      Behavior on width {
+        NumberAnimation {
+          duration: Theme.motionQuick
+          easing.type: Easing.OutQuad
+        }
+      }
     }
   }
 

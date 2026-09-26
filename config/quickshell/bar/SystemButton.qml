@@ -1,5 +1,6 @@
 import Quickshell
 import Quickshell.Bluetooth as BluetoothService
+import Quickshell.Io
 import Quickshell.Networking
 import Quickshell.Services.Pipewire
 import Quickshell.Widgets
@@ -17,7 +18,12 @@ Item {
   property bool panelVisible: false
   property string activeSection: "settings"
   property var pendingWifiNetwork: null
+  property var pendingWifiForgetNetwork: null
   property string wifiPassword: ""
+  property string wifiConnectionMessage: ""
+  property string pendingBluetoothForgetAddress: ""
+  property string bluetoothPairingAddress: ""
+  property string bluetoothPairingMessage: ""
   readonly property int spaceXs: Theme.spaceXs
   readonly property int spaceSm: Theme.spaceSm
   readonly property int spaceMd: Theme.spaceMd
@@ -31,13 +37,27 @@ Item {
   readonly property int motionNormal: Theme.motionNormal
   readonly property bool hasNotifications: notifications.history.count > 0
   readonly property var connectedNetworks: networkList("connected")
+  readonly property var primaryConnectedNetwork: connectedNetworks.length > 0
+    ? connectedNetworks[0]
+    : null
   readonly property var availableNetworks: networkList("available")
   readonly property var closeNetworks: networkList("close")
   readonly property var bluetoothAdapter: BluetoothService.Bluetooth.defaultAdapter
   readonly property var connectedBluetoothDevices: bluetoothDeviceList("connected")
   readonly property var availableBluetoothDevices: bluetoothDeviceList("available")
   readonly property var closeBluetoothDevices: bluetoothDeviceList("close")
-  readonly property var audioOutputs: audioOutputList()
+  readonly property var audioOutputs: audioDeviceList("output")
+  readonly property var audioInputs: audioDeviceList("input")
+  readonly property var audioDevices: audioOutputs.concat(audioInputs)
+  readonly property var defaultAudioInput: Pipewire.defaultAudioSource
+  readonly property bool defaultAudioInputMuted:
+    defaultAudioInput?.audio.muted ?? true
+  property real networkDownloadSpeed: 0
+  property real networkUploadSpeed: 0
+  property real previousReceivedBytes: -1
+  property real previousSentBytes: -1
+  property double previousNetworkSampleTime: 0
+  property string sampledNetworkInterface: ""
   implicitWidth: systemButton.implicitWidth
   implicitHeight: Theme.barControlHeight
   Layout.preferredHeight: Theme.barControlHeight
@@ -57,6 +77,35 @@ Item {
     return result
   }
 
+  function formatNetworkSpeed(bytesPerSecond) {
+    if (bytesPerSecond >= 1024 * 1024)
+      return (bytesPerSecond / (1024 * 1024)).toFixed(1) + " MB/s"
+    if (bytesPerSecond >= 1024)
+      return (bytesPerSecond / 1024).toFixed(0) + " KB/s"
+    return Math.round(bytesPerSecond) + " B/s"
+  }
+
+  function sampleNetworkSpeed() {
+    if (!primaryConnectedNetwork || networkSpeedReader.running)
+      return
+
+    const interfaceName = primaryConnectedNetwork.device.name
+    sampledNetworkInterface = interfaceName
+    networkSpeedReader.exec([
+      "cat",
+      "/sys/class/net/" + interfaceName + "/statistics/rx_bytes",
+      "/sys/class/net/" + interfaceName + "/statistics/tx_bytes"
+    ])
+  }
+
+  onPrimaryConnectedNetworkChanged: {
+    networkDownloadSpeed = 0
+    networkUploadSpeed = 0
+    previousReceivedBytes = -1
+    previousSentBytes = -1
+    previousNetworkSampleTime = 0
+  }
+
   function bluetoothDeviceList(section) {
     if (!bluetoothAdapter)
       return []
@@ -73,16 +122,138 @@ Item {
     return result
   }
 
-  function audioOutputList() {
+  function bluetoothDeviceName(device) {
+    return device.name || device.deviceName || device.address || "Unknown device"
+  }
+
+  function bluetoothAdapterStatus() {
+    if (!bluetoothAdapter)
+      return "No Bluetooth adapter found"
+
+    const state = BluetoothService.BluetoothAdapterState.toString(
+      bluetoothAdapter.state)
+    if (state === "Blocked")
+      return "Bluetooth is blocked"
+    if (state === "Enabling" || state === "Disabling")
+      return state + "…"
+    return "Turn on Bluetooth to search nearby devices"
+  }
+
+  function bluetoothDeviceActionText(device, action) {
+    if (device.pairing)
+      return "Pairing…"
+
+    const state = BluetoothService.BluetoothDeviceState.toString(device.state)
+    if (state === "Connecting" || state === "Disconnecting")
+      return state + "…"
+
+    return action
+  }
+
+  function updateBluetoothDiscovery() {
+    if (!bluetoothAdapter)
+      return
+
+    const shouldDiscover = panelVisible
+      && activeSection === "bluetooth"
+      && bluetoothAdapter.enabled
+    if (bluetoothAdapter.discovering !== shouldDiscover)
+      bluetoothAdapter.discovering = shouldDiscover
+  }
+
+  function updateWifiScanning() {
+    for (const device of Networking.devices.values) {
+      if (device.type === DeviceType.Wifi)
+        device.scannerEnabled = panelVisible && activeSection === "internet"
+    }
+  }
+
+  function requestBluetoothForget(device) {
+    if (pendingBluetoothForgetAddress === device.address) {
+      pendingBluetoothForgetAddress = ""
+      forgetConfirmationTimer.stop()
+      device.forget()
+      return
+    }
+
+    pendingBluetoothForgetAddress = device.address
+    forgetConfirmationTimer.restart()
+  }
+
+  function requestWifiForget(network) {
+    if (pendingWifiForgetNetwork === network) {
+      pendingWifiForgetNetwork = null
+      wifiForgetConfirmationTimer.stop()
+      network.forget()
+      return
+    }
+
+    pendingWifiForgetNetwork = network
+    wifiForgetConfirmationTimer.restart()
+  }
+
+  function pairBluetoothDevice(device) {
+    if (bluetoothPairingProcess.running)
+      return
+
+    bluetoothPairingAddress = device.address
+    bluetoothPairingMessage = ""
+    bluetoothPairingProcess.exec([
+      "bluetoothctl", "--timeout", "30", "--agent", "NoInputNoOutput",
+      "pair", device.address
+    ])
+  }
+
+  function cancelBluetoothPairing(device) {
+    bluetoothPairingProcess.running = false
+    if (device.pairing)
+      device.cancelPair()
+    bluetoothPairingAddress = ""
+    bluetoothPairingMessage = "Pairing canceled"
+  }
+
+  function audioDeviceList(direction) {
     const result = []
+    const deviceIndexes = {}
     for (const node of Pipewire.nodes.values) {
-      if (node.isSink && !node.isStream)
+      if (node.isStream || !node.ready)
+        continue
+
+      const matchesDirection = direction === "output"
+        ? node.isSink
+        : (node.type & PwNodeType.AudioSource) === PwNodeType.AudioSource
+      if (!matchesDirection)
+        continue
+
+      const deviceId = node.properties["device.id"]
+      const identity = deviceId !== undefined
+        ? "device:" + deviceId
+        : "node:" + (node.name || node.description || node.nickname
+          || String(node.id))
+      const existingIndex = deviceIndexes[identity]
+      if (existingIndex === undefined) {
+        deviceIndexes[identity] = result.length
         result.push(node)
+        continue
+      }
+
+      const defaultNode = direction === "output"
+        ? Pipewire.defaultAudioSink
+        : Pipewire.defaultAudioSource
+      if (node === defaultNode)
+        result[existingIndex] = node
     }
     return result
   }
 
+  function audioDeviceName(node, fallback) {
+    return node.nickname || node.description || node.name || fallback
+  }
+
   function connectNetwork(network) {
+    wifiConnectionMessage = ""
+    pendingWifiNetwork = null
+    wifiPassword = ""
     if (network.known
         || network.security === WifiSecurityType.Open
         || network.security === WifiSecurityType.Owe) {
@@ -91,8 +262,6 @@ Item {
     }
 
     pendingWifiNetwork = network
-    wifiPassword = ""
-    wifiPasswordInput.forceActiveFocus()
   }
 
   function connectPendingNetwork() {
@@ -105,29 +274,132 @@ Item {
   }
 
   PwObjectTracker {
-    objects: root.audioOutputs
+    objects: root.audioDevices
+  }
+
+  PwNodePeakMonitor {
+    id: inputPeakMonitor
+
+    node: root.defaultAudioInput
+    enabled: root.panelVisible
+      && root.activeSection === "settings"
+      && root.defaultAudioInput !== null
+  }
+
+  Process {
+    id: bluetoothPairingProcess
+
+    onExited: function(exitCode) {
+      if (root.bluetoothPairingAddress === "")
+        return
+
+      if (exitCode !== 0)
+        root.bluetoothPairingMessage
+          = "Could not pair. Put the device in pairing mode and try again."
+
+      root.bluetoothPairingAddress = ""
+      root.updateBluetoothDiscovery()
+    }
+  }
+
+  Timer {
+    id: networkSpeedTimer
+
+    interval: 1000
+    repeat: true
+    triggeredOnStart: true
+    running: root.panelVisible
+      && root.activeSection === "internet"
+      && root.primaryConnectedNetwork !== null
+    onTriggered: root.sampleNetworkSpeed()
+  }
+
+  Process {
+    id: networkSpeedReader
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        if (!root.primaryConnectedNetwork
+            || root.primaryConnectedNetwork.device.name
+              !== root.sampledNetworkInterface)
+          return
+
+        const values = text.trim().split(/\s+/)
+        if (values.length < 2)
+          return
+
+        const received = Number(values[0])
+        const sent = Number(values[1])
+        const now = Date.now()
+        if (root.previousReceivedBytes >= 0) {
+          const seconds = Math.max(0.001,
+            (now - root.previousNetworkSampleTime) / 1000)
+          root.networkDownloadSpeed = Math.max(0,
+            (received - root.previousReceivedBytes) / seconds)
+          root.networkUploadSpeed = Math.max(0,
+            (sent - root.previousSentBytes) / seconds)
+        }
+
+        root.previousReceivedBytes = received
+        root.previousSentBytes = sent
+        root.previousNetworkSampleTime = now
+      }
+    }
+  }
+
+  Timer {
+    id: forgetConfirmationTimer
+
+    interval: 4000
+    onTriggered: root.pendingBluetoothForgetAddress = ""
+  }
+
+  Timer {
+    id: wifiForgetConfirmationTimer
+
+    interval: 4000
+    onTriggered: root.pendingWifiForgetNetwork = null
+  }
+
+  Connections {
+    target: root.bluetoothAdapter
+
+    function onEnabledChanged(): void {
+      root.updateBluetoothDiscovery()
+    }
   }
 
   onPanelVisibleChanged: {
     if (panelVisible) {
       activeSection = "settings"
       brightness.refresh()
-    } else if (bluetoothAdapter) {
-      bluetoothAdapter.discovering = false
+    } else {
+      pendingWifiNetwork = null
+      pendingWifiForgetNetwork = null
+      wifiPassword = ""
+      wifiConnectionMessage = ""
+      wifiForgetConfirmationTimer.stop()
+      pendingBluetoothForgetAddress = ""
+      forgetConfirmationTimer.stop()
     }
+
+    updateWifiScanning()
+    updateBluetoothDiscovery()
   }
 
   onActiveSectionChanged: {
-    if (activeSection === "internet") {
-      for (const device of Networking.devices.values) {
-        if (device.type === DeviceType.Wifi)
-          device.scannerEnabled = true
-      }
+    if (activeSection !== "internet") {
+      pendingWifiNetwork = null
+      pendingWifiForgetNetwork = null
+      wifiPassword = ""
+      wifiConnectionMessage = ""
+      wifiForgetConfirmationTimer.stop()
     }
 
-    if (bluetoothAdapter)
-      bluetoothAdapter.discovering = activeSection === "bluetooth"
-        && bluetoothAdapter.enabled
+    pendingBluetoothForgetAddress = ""
+    forgetConfirmationTimer.stop()
+    updateWifiScanning()
+    updateBluetoothDiscovery()
   }
 
   Button {
@@ -295,106 +567,54 @@ Item {
           width: parent.width
           spacing: root.spaceSm
 
-          ColumnLayout {
-            Layout.fillWidth: true
-            Layout.preferredWidth: 0
-            spacing: root.spaceXs
-
-            RowLayout {
-              Layout.fillWidth: true
-              Layout.preferredHeight: 40
-              spacing: 0
-
-              Button {
-                Layout.fillWidth: true
-                Layout.preferredWidth: 0
-                Layout.preferredHeight: 40
-                topRightRadius: 0
-                bottomRightRadius: 0
-                enabled: Networking.wifiHardwareEnabled
-                buttonBorderColor: hovered ? Theme.color8 : Theme.color2
-                onClicked: Networking.wifiEnabled = !Networking.wifiEnabled
-
-                Internet {
-                  id: internetTileIcon
-
-                  anchors.centerIn: parent
-                  width: 20
-                  height: 20
-                }
-              }
-
-              Button {
-                Layout.fillWidth: true
-                Layout.preferredWidth: 0
-                Layout.preferredHeight: 40
-                topLeftRadius: 0
-                bottomLeftRadius: 0
-                horizontalPadding: 0
-                buttonBorderColor: hovered ? Theme.color8 : Theme.color2
-                onClicked: root.activeSection = "internet"
-
-                Text {
-                  anchors.centerIn: parent
-                  text: "›"
-                  color: Theme.foreground
-                  font.pixelSize: root.titleFontSize
-                }
-              }
-            }
-
-            Text {
-              Layout.fillWidth: true
-              text: internetTileIcon.networkName
-              color: Theme.color8
-              font.pixelSize: root.captionFontSize
-              horizontalAlignment: Text.AlignHCenter
-              elide: Text.ElideRight
-            }
-          }
-
-          RowLayout {
+          Button {
             Layout.fillWidth: true
             Layout.preferredWidth: 0
             Layout.preferredHeight: 40
             Layout.alignment: Qt.AlignTop
-            spacing: 0
+            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+            onClicked: root.activeSection = "internet"
 
-            Button {
-              Layout.fillWidth: true
-              Layout.preferredWidth: 0
-              Layout.preferredHeight: 40
-              topRightRadius: 0
-              bottomRightRadius: 0
-              enabled: root.bluetoothAdapter !== null
-              buttonBorderColor: hovered ? Theme.color8 : Theme.color2
-              onClicked: {
-                if (root.bluetoothAdapter)
-                  root.bluetoothAdapter.enabled = !root.bluetoothAdapter.enabled
-              }
-
-              Bluetooth {
-                anchors.centerIn: parent
-                width: 20
-                height: 20
-              }
+            Internet {
+              anchors.centerIn: parent
+              width: 20
+              height: 20
             }
+          }
 
-            Button {
-              Layout.fillWidth: true
-              Layout.preferredWidth: 0
-              Layout.preferredHeight: 40
-              topLeftRadius: 0
-              bottomLeftRadius: 0
-              horizontalPadding: 0
-              buttonBorderColor: hovered ? Theme.color8 : Theme.color2
-              onClicked: root.activeSection = "bluetooth"
+          Button {
+            Layout.fillWidth: true
+            Layout.preferredWidth: 0
+            Layout.preferredHeight: 40
+            Layout.alignment: Qt.AlignTop
+            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+            onClicked: root.activeSection = "bluetooth"
 
-              Text {
-                anchors.centerIn: parent
-                text: "›"
-                color: Theme.foreground
-                font.pixelSize: root.titleFontSize
+            Bluetooth {
+              anchors.centerIn: parent
+              width: 20
+              height: 20
+            }
+          }
+
+          Button {
+            Layout.fillWidth: true
+            Layout.preferredWidth: 0
+            Layout.preferredHeight: 40
+            Layout.alignment: Qt.AlignTop
+            buttonBorderColor: notifications.doNotDisturb ? Theme.color8 : (hovered ? Theme.color8 : Theme.color2)
+            onClicked: notifications.doNotDisturb = !notifications.doNotDisturb
+
+            IconImage {
+              anchors.centerIn: parent
+              source: Qt.resolvedUrl("../assets/bell-off.svg")
+              width: 20
+              height: 20
+              layer.enabled: true
+              layer.effect: MultiEffect {
+                brightness: 1
+                colorization: 1
+                colorizationColor: notifications.doNotDisturb ? Theme.color8 : Theme.foreground
               }
             }
           }
@@ -404,9 +624,13 @@ Item {
           width: parent.width
           spacing: root.spaceSm
 
-          Item {
+          Button {
             Layout.preferredWidth: 30
             Layout.preferredHeight: root.controlHeight
+            enabled: volume.sink !== null
+            horizontalPadding: 0
+            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+            onClicked: volume.sink.audio.muted = !volume.sink.audio.muted
 
             Volume {
               id: volume
@@ -457,6 +681,75 @@ Item {
           width: parent.width
           spacing: root.spaceSm
 
+          Button {
+            Layout.preferredWidth: 30
+            Layout.preferredHeight: root.controlHeight
+            enabled: root.defaultAudioInput !== null
+            horizontalPadding: 0
+            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+            onClicked: root.defaultAudioInput.audio.muted
+              = !root.defaultAudioInput.audio.muted
+
+            IconImage {
+              anchors.centerIn: parent
+              width: 18
+              height: 14
+              source: Qt.resolvedUrl("../assets/microphone.svg")
+
+              layer.enabled: true
+              layer.effect: MultiEffect {
+                brightness: 1
+                colorization: 1
+                colorizationColor: root.defaultAudioInputMuted
+                  ? Theme.color11
+                  : Theme.foreground
+              }
+            }
+          }
+
+          Slider {
+            Layout.fillWidth: true
+            enabled: root.defaultAudioInput !== null
+            value: root.defaultAudioInput?.audio.volume ?? 0
+            indicatorValue: {
+              const noiseFloor = 0.12
+              if (inputPeakMonitor.peak <= noiseFloor)
+                return 0
+              return Math.min(1,
+                (inputPeakMonitor.peak - noiseFloor) / (1 - noiseFloor))
+            }
+            indicatorVisible: inputPeakMonitor.enabled
+            indicatorColor: Theme.foreground
+            opacity: enabled ? 1 : 0.5
+
+            onMoved: function(value) {
+              if (!root.defaultAudioInput)
+                return
+              root.defaultAudioInput.audio.volume = value
+              if (value > 0)
+                root.defaultAudioInput.audio.muted = false
+            }
+            onWheelMoved: function(up) {
+              if (!root.defaultAudioInput)
+                return
+              const value = Math.max(0, Math.min(1,
+                root.defaultAudioInput.audio.volume + (up ? 0.02 : -0.02)))
+              root.defaultAudioInput.audio.volume = value
+              if (value > 0)
+                root.defaultAudioInput.audio.muted = false
+            }
+          }
+
+          Item {
+            Layout.preferredWidth: 30
+            Layout.preferredHeight: root.controlHeight
+          }
+        }
+
+        RowLayout {
+          width: parent.width
+          spacing: root.spaceSm
+
           Item {
             Layout.preferredWidth: 30
             Layout.preferredHeight: root.controlHeight
@@ -491,12 +784,6 @@ Item {
           }
         }
 
-        Rectangle {
-          width: parent.width
-          height: 1
-          color: Theme.color2
-        }
-
         RowLayout {
           width: parent.width
           height: 32
@@ -522,25 +809,6 @@ Item {
               text: "Clear all"
               color: parent.enabled ? Theme.color11 : Theme.color2
               font.pixelSize: root.captionFontSize
-            }
-          }
-        }
-
-        RowLayout {
-          width: parent.width
-          height: root.controlHeight
-          spacing: root.spaceSm
-
-          Text {
-            Layout.fillWidth: true
-            text: "Do not disturb"
-            color: Theme.foreground
-            font.pixelSize: root.bodyFontSize
-          }
-          Toggle {
-            checked: notifications.doNotDisturb
-            onToggled: function(checked) {
-              notifications.doNotDisturb = checked
             }
           }
         }
@@ -683,7 +951,7 @@ Item {
 
           Text {
             Layout.fillWidth: true
-            text: "Sound output"
+            text: "Sound"
             color: Theme.foreground
             font.pixelSize: root.titleFontSize
             font.weight: Theme.weightStrong
@@ -696,51 +964,145 @@ Item {
           color: Theme.color2
         }
 
-        Repeater {
-          model: root.audioOutputs
+        Text {
+          width: parent.width
+          visible: !Pipewire.ready
+          text: "Sound devices are unavailable"
+          color: Theme.color2
+          font.pixelSize: root.captionFontSize
+          horizontalAlignment: Text.AlignHCenter
+        }
 
-          Button {
-            required property var modelData
+        Column {
+          width: parent.width
+          spacing: root.spaceSm
+          visible: Pipewire.ready
 
-            width: soundColumn.width
-            implicitHeight: root.listRowHeight
-            buttonBorderColor: modelData === Pipewire.defaultAudioSink
-              ? Theme.color8
-              : (hovered ? Theme.color8 : Theme.color2)
-            onClicked: Pipewire.preferredDefaultAudioSink = modelData
+          Text {
+            width: parent.width
+            text: "Output"
+            color: Theme.foreground
+            font.pixelSize: root.captionFontSize
+            font.weight: Theme.weightStrong
+          }
 
-            RowLayout {
-              anchors.fill: parent
-              anchors.leftMargin: root.spaceMd
-              anchors.rightMargin: root.spaceMd
-              spacing: root.spaceSm
+          Repeater {
+            model: root.audioOutputs
 
-              Text {
-                Layout.fillWidth: true
-                text: modelData.description || modelData.nickname
-                  || modelData.name || "Unknown output"
-                color: modelData === Pipewire.defaultAudioSink
-                  ? Theme.color8
-                  : Theme.foreground
-                font.pixelSize: root.bodyFontSize
-                elide: Text.ElideRight
-              }
+            Button {
+              id: outputDeviceButton
 
-              Text {
-                visible: modelData === Pipewire.defaultAudioSink
-                text: "✓"
-                color: Theme.color8
-                font.pixelSize: root.captionFontSize
+              required property var modelData
+              readonly property bool selected:
+                modelData === Pipewire.defaultAudioSink
+
+              width: soundColumn.width
+              implicitHeight: root.listRowHeight
+              enabled: modelData.ready
+              buttonBorderColor: selected
+                ? Theme.color8
+                : (hovered ? Theme.color8 : Theme.color2)
+              onClicked: Pipewire.preferredDefaultAudioSink = modelData
+
+              RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: root.spaceMd
+                anchors.rightMargin: root.spaceMd
+                spacing: root.spaceSm
+
+                Text {
+                  Layout.fillWidth: true
+                  text: root.audioDeviceName(modelData, "Unknown output")
+                  color: outputDeviceButton.selected
+                    ? Theme.color8
+                    : Theme.foreground
+                  font.pixelSize: root.bodyFontSize
+                  elide: Text.ElideRight
+                }
+
+                Text {
+                  text: outputDeviceButton.selected ? "Selected" : "Select"
+                  color: Theme.color8
+                  font.pixelSize: root.captionFontSize
+                }
               }
             }
           }
-        }
 
-        Text {
-          visible: root.audioOutputs.length === 0
-          text: "No sound outputs found"
-          color: Theme.color2
-          font.pixelSize: root.captionFontSize
+          Text {
+            width: parent.width
+            visible: root.audioOutputs.length === 0
+            text: "No output devices found"
+            color: Theme.color2
+            font.pixelSize: root.captionFontSize
+            horizontalAlignment: Text.AlignHCenter
+          }
+
+          Rectangle {
+            width: parent.width
+            height: 1
+            color: Theme.color2
+          }
+
+          Text {
+            width: parent.width
+            text: "Input"
+            color: Theme.foreground
+            font.pixelSize: root.captionFontSize
+            font.weight: Theme.weightStrong
+          }
+
+          Repeater {
+            model: root.audioInputs
+
+            Button {
+              id: inputDeviceButton
+
+              required property var modelData
+              readonly property bool selected:
+                modelData === Pipewire.defaultAudioSource
+
+              width: soundColumn.width
+              implicitHeight: root.listRowHeight
+              enabled: modelData.ready
+              buttonBorderColor: selected
+                ? Theme.color8
+                : (hovered ? Theme.color8 : Theme.color2)
+              onClicked: Pipewire.preferredDefaultAudioSource = modelData
+
+              RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: root.spaceMd
+                anchors.rightMargin: root.spaceMd
+                spacing: root.spaceSm
+
+                Text {
+                  Layout.fillWidth: true
+                  text: root.audioDeviceName(modelData, "Unknown input")
+                  color: inputDeviceButton.selected
+                    ? Theme.color8
+                    : Theme.foreground
+                  font.pixelSize: root.bodyFontSize
+                  elide: Text.ElideRight
+                }
+
+                Text {
+                  text: inputDeviceButton.selected ? "Selected" : "Select"
+                  color: Theme.color8
+                  font.pixelSize: root.captionFontSize
+                }
+              }
+            }
+          }
+
+          Text {
+            width: parent.width
+            visible: root.audioInputs.length === 0
+            text: "No input devices found"
+            color: Theme.color2
+            font.pixelSize: root.captionFontSize
+            horizontalAlignment: Text.AlignHCenter
+          }
         }
       }
 
@@ -805,6 +1167,22 @@ Item {
 
         Text {
           width: parent.width
+          visible: !Networking.wifiHardwareEnabled || !Networking.wifiEnabled
+          text: Networking.wifiHardwareEnabled
+            ? "Turn on Wi-Fi to search nearby networks"
+            : "Wi-Fi is unavailable"
+          color: Theme.color2
+          font.pixelSize: root.captionFontSize
+          horizontalAlignment: Text.AlignHCenter
+        }
+
+        Column {
+          width: parent.width
+          spacing: root.spaceSm
+          visible: Networking.wifiHardwareEnabled && Networking.wifiEnabled
+
+        Text {
+          width: parent.width
           text: "Connected networks"
           color: Theme.foreground
           font.pixelSize: root.captionFontSize
@@ -815,25 +1193,42 @@ Item {
           model: root.connectedNetworks
 
           Button {
+            id: connectedNetworkButton
+
             required property var modelData
 
             width: internetColumn.width
-            implicitHeight: root.listRowHeight
+            implicitHeight: root.listRowHeight + root.spaceLg
             enabled: !modelData.stateChanging
             buttonBorderColor: hovered ? Theme.color8 : Theme.color2
             onClicked: modelData.disconnect()
 
             RowLayout {
               anchors.fill: parent
-              anchors.leftMargin: root.spaceMd
-              anchors.rightMargin: root.spaceMd
+              anchors.leftMargin: root.spaceLg
+              anchors.rightMargin: root.spaceLg
 
-              Text {
+              ColumnLayout {
                 Layout.fillWidth: true
-                text: modelData.name || "Unknown network"
-                color: Theme.color8
-                font.pixelSize: root.bodyFontSize
-                elide: Text.ElideRight
+                spacing: 0
+
+                Text {
+                  Layout.fillWidth: true
+                  text: modelData.name || "Unknown network"
+                  color: Theme.color8
+                  font.pixelSize: root.bodyFontSize
+                  elide: Text.ElideRight
+                }
+
+                Text {
+                  Layout.fillWidth: true
+                  visible: modelData === root.primaryConnectedNetwork
+                  text: "↓ " + root.formatNetworkSpeed(root.networkDownloadSpeed)
+                    + "   ↑ " + root.formatNetworkSpeed(root.networkUploadSpeed)
+                  color: Theme.color5
+                  font.pixelSize: root.captionFontSize
+                  elide: Text.ElideRight
+                }
               }
 
               Text {
@@ -860,7 +1255,7 @@ Item {
 
         Text {
           width: parent.width
-          text: "Available networks"
+          text: "Saved networks"
           color: Theme.foreground
           font.pixelSize: root.captionFontSize
           font.weight: Theme.weightStrong
@@ -869,31 +1264,57 @@ Item {
         Repeater {
           model: root.availableNetworks
 
-          Button {
+          RowLayout {
             required property var modelData
 
             width: internetColumn.width
-            implicitHeight: root.listRowHeight
-            enabled: !modelData.stateChanging
-            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
-            onClicked: root.connectNetwork(modelData)
+            height: root.listRowHeight
+            spacing: root.spaceXs
 
-            RowLayout {
-              anchors.fill: parent
-              anchors.leftMargin: root.spaceMd
-              anchors.rightMargin: root.spaceMd
+            Button {
+              Layout.fillWidth: true
+              Layout.preferredHeight: root.listRowHeight
+              enabled: !modelData.stateChanging
+              buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+              onClicked: root.connectNetwork(modelData)
 
-              Text {
-                Layout.fillWidth: true
-                text: modelData.name || "Unknown network"
-                color: Theme.foreground
-                font.pixelSize: root.bodyFontSize
-                elide: Text.ElideRight
+              RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: root.spaceMd
+                anchors.rightMargin: root.spaceMd
+
+                Text {
+                  Layout.fillWidth: true
+                  text: modelData.name || "Unknown network"
+                  color: Theme.foreground
+                  font.pixelSize: root.bodyFontSize
+                  elide: Text.ElideRight
+                }
+
+                Text {
+                  text: modelData.stateChanging ? "Working…" : "Connect"
+                  color: Theme.color8
+                  font.pixelSize: root.captionFontSize
+                }
               }
+            }
+
+            Button {
+              readonly property bool confirming:
+                root.pendingWifiForgetNetwork === modelData
+
+              Layout.preferredWidth: confirming ? 70 : 54
+              Layout.preferredHeight: root.listRowHeight
+              enabled: !modelData.stateChanging
+              buttonBorderColor: confirming || hovered
+                ? Theme.color11
+                : Theme.color2
+              onClicked: root.requestWifiForget(modelData)
 
               Text {
-                text: modelData.stateChanging ? "Working…" : "Connect"
-                color: Theme.color8
+                anchors.centerIn: parent
+                text: parent.confirming ? "Confirm?" : "Forget"
+                color: Theme.color11
                 font.pixelSize: root.captionFontSize
               }
             }
@@ -924,109 +1345,171 @@ Item {
         Repeater {
           model: root.closeNetworks
 
-          Button {
+          Column {
             required property var modelData
 
             width: internetColumn.width
-            implicitHeight: root.listRowHeight
-            enabled: !modelData.stateChanging
-            buttonBorderColor: root.pendingWifiNetwork === modelData
-              ? Theme.color8
-              : (hovered ? Theme.color8 : Theme.color2)
-            onClicked: root.connectNetwork(modelData)
-
-            RowLayout {
-              anchors.fill: parent
-              anchors.leftMargin: root.spaceMd
-              anchors.rightMargin: root.spaceMd
-
-              Text {
-                Layout.fillWidth: true
-                text: modelData.name || "Unknown network"
-                color: Theme.foreground
-                font.pixelSize: root.bodyFontSize
-                elide: Text.ElideRight
-              }
-
-              Text {
-                text: modelData.stateChanging ? "Working…" : "Connect"
-                color: Theme.color8
-                font.pixelSize: root.captionFontSize
-              }
-            }
-          }
-        }
-
-        Column {
-          width: parent.width
-          spacing: root.spaceSm
-          visible: root.pendingWifiNetwork !== null
-
-          Text {
-            width: parent.width
-            text: "Password for " + (root.pendingWifiNetwork?.name || "network")
-            color: Theme.foreground
-            font.pixelSize: root.captionFontSize
-            elide: Text.ElideRight
-          }
-
-          Rectangle {
-            width: parent.width
-            height: root.controlHeight
-            radius: Theme.radiusSm
-            color: Theme.color0
-            border.width: Theme.borderWidth
-            border.color: wifiPasswordInput.activeFocus ? Theme.color8 : Theme.color2
-
-            TextInput {
-              id: wifiPasswordInput
-
-              anchors.fill: parent
-              anchors.leftMargin: root.spaceMd
-              anchors.rightMargin: root.spaceMd
-              verticalAlignment: TextInput.AlignVCenter
-              text: root.wifiPassword
-              color: Theme.foreground
-              font.pixelSize: root.bodyFontSize
-              echoMode: TextInput.Password
-              clip: true
-              onTextChanged: root.wifiPassword = text
-              onAccepted: root.connectPendingNetwork()
-            }
-          }
-
-          RowLayout {
-            width: parent.width
-            spacing: root.spaceSm
+            spacing: root.spaceXs
 
             Button {
-              Layout.fillWidth: true
-              Layout.preferredHeight: root.controlHeight
-              onClicked: {
-                root.pendingWifiNetwork = null
+              width: parent.width
+              implicitHeight: root.listRowHeight + root.spaceSm
+              enabled: !modelData.stateChanging
+              buttonBorderColor: root.pendingWifiNetwork === modelData
+                ? Theme.color8
+                : (hovered ? Theme.color8 : Theme.color2)
+              onClicked: root.connectNetwork(modelData)
+
+              RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: root.spaceLg
+                anchors.rightMargin: root.spaceLg
+
+                ColumnLayout {
+                  Layout.fillWidth: true
+                  spacing: 0
+
+                  Text {
+                    Layout.fillWidth: true
+                    text: modelData.name || "Unknown network"
+                    color: Theme.foreground
+                    font.pixelSize: root.bodyFontSize
+                    elide: Text.ElideRight
+                  }
+
+                  Text {
+                    Layout.fillWidth: true
+                    text: Math.round(modelData.signalStrength * 100) + "% signal"
+                    color: Theme.color5
+                    font.pixelSize: root.captionFontSize
+                    elide: Text.ElideRight
+                  }
+                }
+
+                Text {
+                  text: modelData.stateChanging ? "Working…" : "Connect"
+                  color: Theme.color8
+                  font.pixelSize: root.captionFontSize
+                }
+              }
+            }
+
+            Rectangle {
+              id: passwordPanel
+
+              width: parent.width
+              height: passwordForm.implicitHeight + root.spaceLg * 2
+              visible: root.pendingWifiNetwork === modelData
+              radius: Theme.radiusSm
+              color: Theme.color0
+              border.width: Theme.borderWidth
+              border.color: Theme.color8
+
+              onVisibleChanged: {
+                if (visible)
+                  wifiPasswordInput.forceActiveFocus()
+              }
+
+              Column {
+                id: passwordForm
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: root.spaceLg
+                spacing: root.spaceSm
+
+                Text {
+                  width: parent.width
+                  text: "Password for " + (modelData.name || "network")
+                  color: Theme.foreground
+                  font.pixelSize: root.captionFontSize
+                  elide: Text.ElideRight
+                }
+
+                Rectangle {
+                  width: parent.width
+                  height: root.controlHeight
+                  radius: Theme.radiusSm
+                  color: Theme.background
+                  border.width: Theme.borderWidth
+                  border.color: wifiPasswordInput.activeFocus
+                    ? Theme.color8
+                    : Theme.color2
+
+                  TextInput {
+                    id: wifiPasswordInput
+
+                    anchors.fill: parent
+                    anchors.leftMargin: root.spaceMd
+                    anchors.rightMargin: root.spaceMd
+                    verticalAlignment: TextInput.AlignVCenter
+                    text: root.wifiPassword
+                    color: Theme.foreground
+                    font.pixelSize: root.bodyFontSize
+                    echoMode: TextInput.Password
+                    clip: true
+                    onTextChanged: root.wifiPassword = text
+                    onAccepted: root.connectPendingNetwork()
+                  }
+                }
+
+                Text {
+                  width: parent.width
+                  visible: root.wifiConnectionMessage !== ""
+                  text: root.wifiConnectionMessage
+                  color: Theme.color11
+                  font.pixelSize: root.captionFontSize
+                  wrapMode: Text.WordWrap
+                }
+
+                RowLayout {
+                  width: parent.width
+                  spacing: root.spaceSm
+
+                  Button {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: root.controlHeight
+                    onClicked: {
+                      root.pendingWifiNetwork = null
+                      root.wifiPassword = ""
+                      root.wifiConnectionMessage = ""
+                    }
+
+                    Text {
+                      anchors.centerIn: parent
+                      text: "Cancel"
+                      color: Theme.foreground
+                      font.pixelSize: root.captionFontSize
+                    }
+                  }
+
+                  Button {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: root.controlHeight
+                    enabled: root.wifiPassword.length > 0
+                    buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+                    onClicked: root.connectPendingNetwork()
+
+                    Text {
+                      anchors.centerIn: parent
+                      text: "Connect"
+                      color: Theme.color8
+                      font.pixelSize: root.captionFontSize
+                    }
+                  }
+                }
+              }
+            }
+
+            Connections {
+              target: modelData
+
+              function onConnectionFailed(reason): void {
+                root.pendingWifiNetwork = modelData
                 root.wifiPassword = ""
-              }
-
-              Text {
-                anchors.centerIn: parent
-                text: "Cancel"
-                color: Theme.foreground
-                font.pixelSize: root.captionFontSize
-              }
-            }
-
-            Button {
-              Layout.fillWidth: true
-              Layout.preferredHeight: root.controlHeight
-              enabled: root.wifiPassword.length > 0
-              buttonBorderColor: hovered ? Theme.color8 : Theme.color2
-              onClicked: root.connectPendingNetwork()
-
-              Text {
-                anchors.centerIn: parent
-                text: "Connect"
-                color: Theme.color8
-                font.pixelSize: root.captionFontSize
+                root.wifiConnectionMessage
+                  = "Could not connect. Check the password and try again."
               }
             }
           }
@@ -1037,6 +1520,7 @@ Item {
           text: "None"
           color: Theme.color2
           font.pixelSize: root.captionFontSize
+        }
         }
       }
 
@@ -1087,11 +1571,14 @@ Item {
           Toggle {
             checked: root.bluetoothAdapter?.enabled ?? false
             enabled: root.bluetoothAdapter !== null
+              && root.bluetoothAdapter.state !== BluetoothService.BluetoothAdapterState.Enabling
+              && root.bluetoothAdapter.state !== BluetoothService.BluetoothAdapterState.Disabling
             onToggled: function(checked) {
               if (!root.bluetoothAdapter)
                 return
               root.bluetoothAdapter.enabled = checked
-              root.bluetoothAdapter.discovering = checked
+              if (!checked)
+                root.bluetoothAdapter.discovering = false
             }
           }
         }
@@ -1104,168 +1591,274 @@ Item {
 
         Text {
           width: parent.width
-          text: "Connected devices"
-          color: Theme.foreground
+          visible: !root.bluetoothAdapter || !root.bluetoothAdapter.enabled
+          text: root.bluetoothAdapterStatus()
+          color: Theme.color2
           font.pixelSize: root.captionFontSize
-          font.weight: Theme.weightStrong
+          horizontalAlignment: Text.AlignHCenter
         }
 
-        Repeater {
-          model: root.connectedBluetoothDevices
+        Column {
+          width: parent.width
+          spacing: root.spaceSm
+          visible: root.bluetoothAdapter?.enabled ?? false
 
-          Button {
-            required property var modelData
+          Text {
+            width: parent.width
+            text: "Connected devices"
+            color: Theme.foreground
+            font.pixelSize: root.captionFontSize
+            font.weight: Theme.weightStrong
+          }
 
-            width: bluetoothColumn.width
-            implicitHeight: root.listRowHeight
-            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
-            onClicked: modelData.disconnect()
+          Repeater {
+            model: root.connectedBluetoothDevices
 
             RowLayout {
-              anchors.fill: parent
-              anchors.leftMargin: root.spaceMd
-              anchors.rightMargin: root.spaceMd
+              required property var modelData
 
-              Text {
+              width: bluetoothColumn.width
+              height: root.listRowHeight + root.spaceLg
+              spacing: root.spaceXs
+
+              Button {
                 Layout.fillWidth: true
-                text: modelData.name || modelData.deviceName || modelData.address
-                color: Theme.color8
-                font.pixelSize: root.bodyFontSize
-                elide: Text.ElideRight
+                Layout.preferredHeight: root.listRowHeight + root.spaceLg
+                enabled: modelData.state === BluetoothService.BluetoothDeviceState.Connected
+                buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+                onClicked: modelData.disconnect()
+
+                RowLayout {
+                  anchors.fill: parent
+                  anchors.leftMargin: root.spaceLg
+                  anchors.rightMargin: root.spaceLg
+
+                  ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    Text {
+                      Layout.fillWidth: true
+                      text: root.bluetoothDeviceName(modelData)
+                      color: Theme.color8
+                      font.pixelSize: root.bodyFontSize
+                      elide: Text.ElideRight
+                    }
+
+                    Text {
+                      Layout.fillWidth: true
+                      visible: modelData.batteryAvailable
+                      text: Math.round(modelData.battery * 100) + "% battery"
+                      color: Theme.color5
+                      font.pixelSize: root.captionFontSize
+                      elide: Text.ElideRight
+                    }
+                  }
+
+                  Text {
+                    text: root.bluetoothDeviceActionText(modelData, "Disconnect")
+                    color: Theme.foreground
+                    font.pixelSize: root.captionFontSize
+                  }
+                }
               }
 
+              Button {
+                readonly property bool confirming:
+                  root.pendingBluetoothForgetAddress === modelData.address
+
+                Layout.preferredWidth: confirming ? 70 : 54
+                Layout.preferredHeight: root.listRowHeight + root.spaceLg
+                buttonBorderColor: confirming || hovered ? Theme.color11 : Theme.color2
+                onClicked: root.requestBluetoothForget(modelData)
+
+                Text {
+                  anchors.centerIn: parent
+                  text: parent.confirming ? "Confirm?" : "Forget"
+                  color: Theme.color11
+                  font.pixelSize: root.captionFontSize
+                }
+              }
+            }
+          }
+
+          Text {
+            visible: root.connectedBluetoothDevices.length === 0
+            text: "None"
+            color: Theme.color2
+            font.pixelSize: root.captionFontSize
+          }
+
+          Rectangle {
+            width: parent.width
+            height: 1
+            color: Theme.color2
+          }
+
+          Text {
+            width: parent.width
+            text: "Saved devices"
+            color: Theme.foreground
+            font.pixelSize: root.captionFontSize
+            font.weight: Theme.weightStrong
+          }
+
+          Repeater {
+            model: root.availableBluetoothDevices
+
+            RowLayout {
+              required property var modelData
+
+              width: bluetoothColumn.width
+              height: root.listRowHeight
+              spacing: root.spaceXs
+
+              Button {
+                Layout.fillWidth: true
+                Layout.preferredHeight: root.listRowHeight
+                enabled: modelData.state === BluetoothService.BluetoothDeviceState.Disconnected
+                buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+                onClicked: modelData.connect()
+
+                RowLayout {
+                  anchors.fill: parent
+                  anchors.leftMargin: root.spaceMd
+                  anchors.rightMargin: root.spaceMd
+
+                  Text {
+                    Layout.fillWidth: true
+                    text: root.bluetoothDeviceName(modelData)
+                    color: Theme.foreground
+                    font.pixelSize: root.bodyFontSize
+                    elide: Text.ElideRight
+                  }
+
+                  Text {
+                    text: root.bluetoothDeviceActionText(modelData, "Connect")
+                    color: Theme.color8
+                    font.pixelSize: root.captionFontSize
+                  }
+                }
+              }
+
+              Button {
+                readonly property bool confirming:
+                  root.pendingBluetoothForgetAddress === modelData.address
+
+                Layout.preferredWidth: confirming ? 70 : 54
+                Layout.preferredHeight: root.listRowHeight
+                buttonBorderColor: confirming || hovered ? Theme.color11 : Theme.color2
+                onClicked: root.requestBluetoothForget(modelData)
+
+                Text {
+                  anchors.centerIn: parent
+                  text: parent.confirming ? "Confirm?" : "Forget"
+                  color: Theme.color11
+                  font.pixelSize: root.captionFontSize
+                }
+              }
+            }
+          }
+
+          Text {
+            visible: root.availableBluetoothDevices.length === 0
+            text: "None"
+            color: Theme.color2
+            font.pixelSize: root.captionFontSize
+          }
+
+          Rectangle {
+            width: parent.width
+            height: 1
+            color: Theme.color2
+          }
+
+          RowLayout {
+            width: parent.width
+            spacing: root.spaceSm
+
+            Text {
+              Layout.fillWidth: true
+              text: "Nearby devices"
+              color: Theme.foreground
+              font.pixelSize: root.captionFontSize
+              font.weight: Theme.weightStrong
+            }
+
+            Button {
+              Layout.preferredWidth: 66
+              Layout.preferredHeight: root.controlHeight
+              buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+              onClicked: root.bluetoothAdapter.discovering
+                = !root.bluetoothAdapter.discovering
+
               Text {
-                text: "Disconnect"
-                color: Theme.foreground
+                anchors.centerIn: parent
+                text: root.bluetoothAdapter?.discovering ? "Stop" : "Scan"
+                color: Theme.color8
                 font.pixelSize: root.captionFontSize
               }
             }
           }
-        }
 
-        Text {
-          visible: root.connectedBluetoothDevices.length === 0
-          text: "None"
-          color: Theme.color2
-          font.pixelSize: root.captionFontSize
-        }
+          Repeater {
+            model: root.closeBluetoothDevices
 
-        Rectangle {
-          width: parent.width
-          height: 1
-          color: Theme.color2
-        }
+            Button {
+              id: nearbyDeviceButton
 
-        Text {
-          width: parent.width
-          text: "Available devices"
-          color: Theme.foreground
-          font.pixelSize: root.captionFontSize
-          font.weight: Theme.weightStrong
-        }
+              required property var modelData
+              readonly property bool pairing:
+                root.bluetoothPairingAddress === modelData.address
 
-        Repeater {
-          model: root.availableBluetoothDevices
-
-          Button {
-            required property var modelData
-
-            width: bluetoothColumn.width
-            implicitHeight: root.listRowHeight
-            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
-            onClicked: modelData.connect()
-
-            RowLayout {
-              anchors.fill: parent
-              anchors.leftMargin: root.spaceMd
-              anchors.rightMargin: root.spaceMd
-
-              Text {
-                Layout.fillWidth: true
-                text: modelData.name || modelData.deviceName || modelData.address
-                color: Theme.foreground
-                font.pixelSize: root.bodyFontSize
-                elide: Text.ElideRight
+              width: bluetoothColumn.width
+              implicitHeight: root.listRowHeight
+              enabled: !bluetoothPairingProcess.running || pairing
+              buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+              onClicked: {
+                if (pairing)
+                  root.cancelBluetoothPairing(modelData)
+                else
+                  root.pairBluetoothDevice(modelData)
               }
 
-              Text {
-                text: "Connect"
-                color: Theme.color8
-                font.pixelSize: root.captionFontSize
+              RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: root.spaceMd
+                anchors.rightMargin: root.spaceMd
+
+                Text {
+                  Layout.fillWidth: true
+                  text: root.bluetoothDeviceName(modelData)
+                  color: Theme.foreground
+                  font.pixelSize: root.bodyFontSize
+                  elide: Text.ElideRight
+                }
+
+                Text {
+                  text: nearbyDeviceButton.pairing ? "Cancel" : "Pair"
+                  color: nearbyDeviceButton.pairing ? Theme.color11 : Theme.color8
+                  font.pixelSize: root.captionFontSize
+                }
               }
             }
           }
-        }
 
-        Text {
-          visible: root.availableBluetoothDevices.length === 0
-          text: "None"
-          color: Theme.color2
-          font.pixelSize: root.captionFontSize
-        }
-
-        Rectangle {
-          width: parent.width
-          height: 1
-          color: Theme.color2
-        }
-
-        Text {
-          width: parent.width
-          text: "Nearby devices"
-          color: Theme.foreground
-          font.pixelSize: root.captionFontSize
-          font.weight: Theme.weightStrong
-        }
-
-        Repeater {
-          model: root.closeBluetoothDevices
-
-          Button {
-            required property var modelData
-
-            width: bluetoothColumn.width
-            implicitHeight: root.listRowHeight
-            enabled: !modelData.pairing
-            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
-            onClicked: modelData.pair()
-
-            Connections {
-              target: modelData
-
-              function onPairedChanged(): void {
-                if (modelData.paired && !modelData.connected)
-                  modelData.connect()
-              }
-            }
-
-            RowLayout {
-              anchors.fill: parent
-              anchors.leftMargin: root.spaceMd
-              anchors.rightMargin: root.spaceMd
-
-              Text {
-                Layout.fillWidth: true
-                text: modelData.name || modelData.deviceName || modelData.address
-                color: Theme.foreground
-                font.pixelSize: root.bodyFontSize
-                elide: Text.ElideRight
-              }
-
-              Text {
-                text: modelData.pairing ? "Pairing…" : "Pair"
-                color: Theme.color8
-                font.pixelSize: root.captionFontSize
-              }
-            }
+          Text {
+            width: parent.width
+            visible: root.bluetoothPairingMessage !== ""
+            text: root.bluetoothPairingMessage
+            color: Theme.color11
+            font.pixelSize: root.captionFontSize
+            wrapMode: Text.WordWrap
           }
-        }
 
-        Text {
-          visible: root.closeBluetoothDevices.length === 0
-          text: "None"
-          color: Theme.color2
-          font.pixelSize: root.captionFontSize
+          Text {
+            visible: root.closeBluetoothDevices.length === 0
+            text: root.bluetoothAdapter?.discovering ? "Searching…" : "None found"
+            color: Theme.color2
+            font.pixelSize: root.captionFontSize
+          }
         }
       }
     }
