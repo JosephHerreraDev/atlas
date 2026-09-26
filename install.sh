@@ -79,9 +79,12 @@ if [[ -z "${BASH_SOURCE[0]:-}" ]]; then
   bootstrap_dir="$(mktemp -d)"
   trap 'rm -rf -- "${bootstrap_dir}"' EXIT
 
-  printf 'Downloading Atlas...\n'
-  curl -fsSL "${REPOSITORY_ARCHIVE}" |
-    tar -xz --strip-components=1 -C "${bootstrap_dir}"
+  download_atlas() {
+    curl -fsSL "${REPOSITORY_ARCHIVE}" |
+      tar -xz --strip-components=1 -C "${bootstrap_dir}"
+  }
+
+  run_with_spinner "Downloading Atlas" download_atlas
 
   bash "${bootstrap_dir}/install.sh"
   exit
