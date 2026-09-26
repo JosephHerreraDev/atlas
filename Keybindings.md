@@ -46,6 +46,7 @@
 | `SUPER + N`           | Launch notes app          |
 | `SUPER + C`           | Launch code editor        |
 | `SUPER + M`           | Launch music player       |
+| `SUPER + SHIFT + M`   | Launch cliamp             |
 
 # Tmux
 
