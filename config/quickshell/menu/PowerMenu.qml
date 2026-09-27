@@ -22,7 +22,7 @@ Scope {
   readonly property int actionSpacing: Theme.radiusMd
   readonly property var actions: [
     { name: "Lock", description: "Lock the current session", icon: "lock.svg", command: ["hyprlock"] },
-    { name: "Log out", description: "End the current session", icon: "logout.svg", command: ["hyprctl", "dispatch", "exit"] },
+    { name: "Log out", description: "End the current session", icon: "logout.svg", command: ["sh", "-c", "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"] },
     { name: "Suspend", description: "Suspend this computer", icon: "suspend.svg", command: ["systemctl", "suspend"] },
     { name: "Restart", description: "Restart this computer", icon: "restart.svg", command: ["systemctl", "reboot"] },
     { name: "Shut down", description: "Power off this computer", icon: "power.svg", command: ["systemctl", "poweroff"] }
