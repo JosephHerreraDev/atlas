@@ -41,6 +41,15 @@ hl.window_rule({
 })
 
 hl.window_rule({
+	name = "cliamp-float-centered",
+	match = { class = "cliamp" },
+
+	float = true,
+	size = { "monitor_w*0.4", "monitor_h*0.35" },
+	center = true,
+})
+
+hl.window_rule({
 	name = "browser-bind",
 	match = { class = browser },
 	workspace = "2"
