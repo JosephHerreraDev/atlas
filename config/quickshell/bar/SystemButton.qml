@@ -26,6 +26,9 @@ Item {
   property string bluetoothActionStage: ""
   property string bluetoothActionDeviceName: ""
   property string bluetoothPairingMessage: ""
+  property string bluetoothCommandOutput: ""
+  property bool bluetoothCommandSucceeded: false
+  property int bluetoothConnectChecks: 0
   readonly property int spaceXs: Theme.spaceXs
   readonly property int spaceSm: Theme.spaceSm
   readonly property int spaceMd: Theme.spaceMd
@@ -159,7 +162,10 @@ Item {
     const shouldDiscover = panelVisible
       && activeSection === "bluetooth"
       && bluetoothAdapter.enabled
-      && bluetoothPairingAddress === ""
+      // bluetoothctl needs an active scan report to initiate pairing with a
+      // device that is not connected yet. Keep discovery alive for the pair
+      // command, then stop it before the trust/connect fallback stages.
+      && (bluetoothPairingAddress === "" || bluetoothActionStage === "pair")
     if (bluetoothAdapter.discovering !== shouldDiscover)
       bluetoothAdapter.discovering = shouldDiscover
   }
@@ -196,7 +202,7 @@ Item {
   }
 
   function pairBluetoothDevice(device) {
-    if (bluetoothPairingProcess.running)
+    if (bluetoothPairingAddress !== "")
       return
 
     bluetoothPairingAddress = device.address
@@ -205,26 +211,68 @@ Item {
       + bluetoothActionDeviceName + "…"
     bluetoothActionStage = "pair"
     updateBluetoothDiscovery()
-    bluetoothPairingProcess.exec([
-      "bluetoothctl", "--timeout", "45", "--agent", "NoInputNoOutput",
-      "pair", device.address
+    runBluetoothCommand([
+      "bluetoothctl", "--agent", "NoInputNoOutput"
     ])
   }
 
   function connectBluetoothDevice(device) {
-    if (bluetoothPairingProcess.running)
+    if (bluetoothPairingAddress !== "")
       return
 
     bluetoothPairingAddress = device.address
     bluetoothActionDeviceName = bluetoothDeviceName(device)
     bluetoothPairingMessage = "Connecting to "
       + bluetoothActionDeviceName + "…"
-    bluetoothActionStage = "trust"
     device.blocked = false
-    updateBluetoothDiscovery()
-    bluetoothPairingProcess.exec([
-      "bluetoothctl", "--timeout", "15", "trust", device.address
-    ])
+    device.trusted = true
+    startBluetoothConnection(device)
+  }
+
+  function runBluetoothCommand(command) {
+    bluetoothCommandOutput = ""
+    bluetoothCommandSucceeded = false
+    bluetoothPairingProcess.exec(command)
+  }
+
+  function handleBluetoothCommandLine(line) {
+    bluetoothCommandOutput += line + "\n"
+    const cleanLine = line.replace(
+      /\x1b\[[0-9;?]*[ -/]*[@-~]/g, "")
+    if (bluetoothActionStage === "pair"
+        && /pairing successful/i.test(cleanLine)) {
+      bluetoothCommandSucceeded = true
+      bluetoothPairingQuitTimer.start()
+    }
+  }
+
+  function bluetoothCommandError(stage, device) {
+    const output = bluetoothCommandOutput
+      .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, "")
+      .trim()
+    const failed = /failed|not available|not connected|authentication|error/i
+      .test(output)
+
+    let succeeded = false
+    if (stage === "pair")
+      succeeded = (device?.paired ?? false) || (device?.bonded ?? false)
+        || /pairing successful|already paired/i.test(output)
+    else if (stage === "trust")
+      succeeded = (device?.trusted ?? false)
+        || /trust succeeded|already trusted/i.test(output)
+    else if (stage === "connect")
+      succeeded = (device?.connected ?? false)
+        || /connection successful|already connected/i.test(output)
+
+    if (!failed && succeeded)
+      return ""
+
+    const lines = output.split(/\r?\n/).filter(function(line) {
+      return line.trim() !== "" && !/^\s*\[CHG\]/.test(line)
+    })
+    if (lines.length > 0)
+      return lines[lines.length - 1].trim()
+    return "Bluetooth did not confirm that the operation succeeded"
   }
 
   function bluetoothDeviceByAddress(address) {
@@ -237,7 +285,31 @@ Item {
     return null
   }
 
+  function startBluetoothConnection(device) {
+    bluetoothActionStage = "connect"
+    bluetoothPairingMessage = "Connecting to "
+      + bluetoothActionDeviceName + "…"
+    updateBluetoothDiscovery()
+
+    if (!device) {
+      finishBluetoothAction("Could not connect to "
+        + bluetoothActionDeviceName + ": device is no longer available")
+      return
+    }
+    if (device.connected) {
+      finishBluetoothAction("")
+      return
+    }
+
+    bluetoothConnectChecks = 0
+    bluetoothConnectionStartTimer.start()
+  }
+
   function finishBluetoothAction(message) {
+    bluetoothPairingTimeoutTimer.stop()
+    bluetoothPairingQuitTimer.stop()
+    bluetoothConnectionStartTimer.stop()
+    bluetoothConnectionTimer.stop()
     bluetoothPairingAddress = ""
     bluetoothActionStage = ""
     bluetoothActionDeviceName = ""
@@ -339,33 +411,46 @@ Item {
 
   Process {
     id: bluetoothPairingProcess
+    stdinEnabled: true
+
+    onStarted: {
+      if (root.bluetoothActionStage === "pair") {
+        bluetoothPairingTimeoutTimer.start()
+        write("pair " + root.bluetoothPairingAddress + "\n")
+      }
+    }
+
+    stdout: SplitParser {
+      onRead: function(data) {
+        root.handleBluetoothCommandLine(data)
+      }
+    }
+
+    stderr: SplitParser {
+      onRead: function(data) {
+        root.handleBluetoothCommandLine(data)
+      }
+    }
 
     onExited: function(exitCode) {
+      bluetoothPairingTimeoutTimer.stop()
       if (root.bluetoothPairingAddress === "")
         return
 
       const address = root.bluetoothPairingAddress
       const device = root.bluetoothDeviceByAddress(address)
-      if (exitCode !== 0) {
+      const commandError = root.bluetoothCommandError(
+        root.bluetoothActionStage, device)
+      if ((exitCode !== 0 && !root.bluetoothCommandSucceeded)
+          || commandError !== "") {
         const action = root.bluetoothActionStage === "pair"
           ? "pair with " : "connect to "
         root.finishBluetoothAction("Could not " + action
-          + root.bluetoothActionDeviceName
-          + ". Put the device in pairing mode and try again.")
+          + root.bluetoothActionDeviceName + ": " + commandError)
         return
       }
 
       if (root.bluetoothActionStage === "pair") {
-        root.bluetoothActionStage = "trust"
-        root.bluetoothPairingMessage = "Trusting "
-          + root.bluetoothActionDeviceName + "…"
-        bluetoothPairingProcess.exec([
-          "bluetoothctl", "--timeout", "15", "trust", address
-        ])
-        return
-      }
-
-      if (root.bluetoothActionStage === "trust") {
         if (device) {
           device.blocked = false
           device.trusted = true
@@ -375,16 +460,78 @@ Item {
           return
         }
 
-        root.bluetoothActionStage = "connect"
-        root.bluetoothPairingMessage = "Connecting to "
-          + root.bluetoothActionDeviceName + "…"
-        bluetoothPairingProcess.exec([
-          "bluetoothctl", "--timeout", "30", "connect", address
-        ])
+        root.startBluetoothConnection(device)
         return
       }
 
       root.finishBluetoothAction("")
+    }
+  }
+
+  Timer {
+    id: bluetoothPairingTimeoutTimer
+
+    interval: 45000
+    onTriggered: bluetoothPairingProcess.running = false
+  }
+
+  Timer {
+    id: bluetoothPairingQuitTimer
+
+    interval: 500
+    onTriggered: {
+      if (bluetoothPairingProcess.running)
+        bluetoothPairingProcess.write("quit\n")
+    }
+  }
+
+  Timer {
+    id: bluetoothConnectionStartTimer
+
+    interval: 100
+    repeat: true
+    onTriggered: {
+      root.bluetoothConnectChecks++
+      if ((root.bluetoothAdapter?.discovering ?? false)
+          && root.bluetoothConnectChecks < 20)
+        return
+
+      stop()
+      const device = root.bluetoothDeviceByAddress(
+        root.bluetoothPairingAddress)
+      if (!device) {
+        root.finishBluetoothAction("Could not connect to "
+          + root.bluetoothActionDeviceName + ": device is no longer available")
+        return
+      }
+
+      root.bluetoothConnectChecks = 0
+      device.connect()
+      bluetoothConnectionTimer.start()
+    }
+  }
+
+  Timer {
+    id: bluetoothConnectionTimer
+
+    interval: 250
+    repeat: true
+    onTriggered: {
+      root.bluetoothConnectChecks++
+      const device = root.bluetoothDeviceByAddress(
+        root.bluetoothPairingAddress)
+      if (device?.connected ?? false) {
+        root.finishBluetoothAction("")
+        return
+      }
+
+      const disconnected = device
+        && device.state === BluetoothService.BluetoothDeviceState.Disconnected
+      if (root.bluetoothConnectChecks >= 40
+          || (root.bluetoothConnectChecks >= 3 && disconnected)) {
+        root.finishBluetoothAction("Could not connect to "
+          + root.bluetoothActionDeviceName)
+      }
     }
   }
 
@@ -1927,7 +2074,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: root.listRowHeight
                 enabled: modelData.state === BluetoothService.BluetoothDeviceState.Disconnected
-                  && !bluetoothPairingProcess.running
+                  && root.bluetoothPairingAddress === ""
                 buttonBorderColor: hovered ? Theme.color8 : Theme.color2
                 onClicked: root.connectBluetoothDevice(modelData)
 
@@ -2026,7 +2173,7 @@ Item {
 
               width: bluetoothColumn.width
               implicitHeight: root.listRowHeight
-              enabled: !bluetoothPairingProcess.running || pairing
+              enabled: root.bluetoothPairingAddress === "" || pairing
               buttonBorderColor: hovered ? Theme.color8 : Theme.color2
               onClicked: {
                 if (pairing)
