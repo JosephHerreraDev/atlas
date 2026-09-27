@@ -47,6 +47,15 @@ hl.window_rule({
 })
 
 hl.window_rule({
+	name = "browser-pip-follow",
+	match = { title = "^[Pp]icture[ -]in[ -][Pp]icture$" },
+
+	float = true,
+	move = { "monitor_w-window_w-20", "monitor_h-window_h-20" },
+	pin = true,
+})
+
+hl.window_rule({
 	name = "notes-bind",
 	match = { class = notes },
 	workspace = "4"
