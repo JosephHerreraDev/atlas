@@ -9,17 +9,23 @@ theme_colors() {
   local theme_file="$1"
 
   awk '
-    /^color[1-5] *=/ {
+    /^(background|foreground|color[1-5])[[:space:]]*=/ {
+      split($0, assignment, "=")
+      key = assignment[1]
+      gsub(/[[:space:]]/, "", key)
       split($0, fields, "\"")
-      colors[++count] = fields[2]
+      colors[key] = fields[2]
     }
     END {
-      if (count != 5)
+      if (!colors["background"] || !colors["foreground"])
         exit 1
+      for (i = 1; i <= 5; i++)
+        if (!colors["color" i])
+          exit 1
 
-      printf "%s", colors[1]
-      for (i = 2; i <= count; i++)
-        printf "|%s", colors[i]
+      printf "%s|%s", colors["background"], colors["foreground"]
+      for (i = 1; i <= 5; i++)
+        printf "|%s", colors["color" i]
       printf "\n"
     }
   ' "$theme_file"

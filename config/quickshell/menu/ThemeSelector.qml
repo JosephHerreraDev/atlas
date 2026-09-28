@@ -94,7 +94,11 @@ Scope {
           const fields = line.split("|")
           const name = fields.shift()
           names.push(name)
-          palettes[name] = fields
+          palettes[name] = {
+            background: fields.shift(),
+            foreground: fields.shift(),
+            accents: fields
+          }
         })
         root.themePalettes = palettes
         root.themes = names
@@ -246,13 +250,14 @@ Scope {
               id: themeRow
               required property int index
               required property string modelData
-              readonly property var palette: root.themePalettes[modelData] || []
+              readonly property var palette: root.themePalettes[modelData] || ({})
+              readonly property var accentColors: palette.accents || []
               width: themeList.width
               height: 42
               radius: Theme.radiusMd
-              color: ListView.isCurrentItem || mouse.containsMouse ? Theme.color1 : Theme.color0
+              color: palette.background || Theme.color0
               border.width: ListView.isCurrentItem ? Theme.borderWidth : 0
-              border.color: Theme.borderFocus
+              border.color: palette.foreground || Theme.borderFocus
               RowLayout {
                 anchors.fill: parent
                 anchors.margins: 12
@@ -261,7 +266,7 @@ Scope {
                 Text {
                   Layout.fillWidth: true
                   text: themeRow.modelData.replace(/-/g, " ")
-                  color: themeRow.ListView.isCurrentItem ? Theme.color6 : Theme.color4
+                  color: themeRow.palette.foreground || Theme.color4
                   font.pixelSize: 13
                   font.weight: themeRow.ListView.isCurrentItem
                     ? Theme.weightStrong : Theme.weightMedium
@@ -269,7 +274,7 @@ Scope {
                 }
 
                 Repeater {
-                  model: themeRow.palette
+                  model: themeRow.accentColors
 
                   Rectangle {
                     required property string modelData
@@ -278,7 +283,7 @@ Scope {
                     radius: Theme.radiusMd
                     color: modelData
                     border.width: Theme.borderWidth
-                    border.color: Theme.border
+                    border.color: themeRow.palette.foreground || Theme.border
                   }
                 }
               }
