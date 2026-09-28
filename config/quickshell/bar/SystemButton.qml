@@ -740,6 +740,7 @@ Item {
     implicitWidth: 320
     padding: root.spaceLg
     shown: root.panelVisible
+    backgroundOpacity: 0.9
 
     onVisibleChanged: {
       if (!visible && root.panelVisible)

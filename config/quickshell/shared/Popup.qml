@@ -10,8 +10,9 @@ PopupWindow {
   property real gap: 8
   property real padding: 10
   property bool shown: false
-  property real slideOffset: 0
+  property real backgroundOpacity: 1
   property bool presentationVisible: false
+  property real transitionProgress: 0
 
   readonly property bool shouldShow: root.shown
     && PopupState.activePopup === root
@@ -47,8 +48,10 @@ PopupWindow {
   onShouldShowChanged: {
     if (shouldShow) {
       closeAnimation.stop()
-      presentationVisible = true
-      slideOffset = -12
+      if (!presentationVisible) {
+        transitionProgress = 0
+        presentationVisible = true
+      }
       openAnimation.restart()
     } else if (presentationVisible) {
       openAnimation.stop()
@@ -81,8 +84,8 @@ PopupWindow {
     id: openAnimation
 
     target: root
-    property: "slideOffset"
-    to: 0
+    property: "transitionProgress"
+    to: 1
     duration: Theme.motionNormal
     easing.type: Easing.OutCubic
   }
@@ -91,9 +94,9 @@ PopupWindow {
     id: closeAnimation
 
     target: root
-    property: "slideOffset"
-    to: -12
-    duration: Theme.motionNormal - 20
+    property: "transitionProgress"
+    to: 0
+    duration: Theme.motionFast
     easing.type: Easing.InCubic
 
     onFinished: {
@@ -104,12 +107,20 @@ PopupWindow {
 
   Rectangle {
     anchors.fill: parent
-    color: Theme.surface
+    enabled: root.shouldShow
+    opacity: root.transitionProgress
+    scale: 0.96 + root.transitionProgress * 0.04
+    transformOrigin: Item.TopRight
+    color: Qt.rgba(
+      Theme.surface.r,
+      Theme.surface.g,
+      Theme.surface.b,
+      root.backgroundOpacity)
     border.color: Theme.text
     border.width: Theme.borderWidth
     radius: Theme.radiusMd
     transform: Translate {
-      y: root.slideOffset
+      y: -8 * (1 - root.transitionProgress)
     }
 
     Item {
