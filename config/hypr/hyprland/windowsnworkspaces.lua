@@ -50,6 +50,15 @@ hl.window_rule({
 })
 
 hl.window_rule({
+	name = "btop-float-centered",
+	match = { class = "btop" },
+
+	float = true,
+	size = { "monitor_w*0.5", "monitor_h*0.5" },
+	center = true,
+})
+
+hl.window_rule({
 	name = "browser-bind",
 	match = { class = browser },
 	workspace = "2"

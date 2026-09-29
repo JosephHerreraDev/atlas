@@ -47,6 +47,7 @@
 | `SUPER + C`           | Launch code editor        |
 | `SUPER + M`           | Launch music player       |
 | `SUPER + SHIFT + M`   | Launch cliamp             |
+| `SUPER + I`           | Launch or focus btop      |
 
 # Tmux
 
