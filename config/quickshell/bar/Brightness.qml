@@ -1,65 +1,49 @@
-import Quickshell
-import Quickshell.Io
-import Quickshell.Widgets
 import QtQuick
-import QtQuick.Effects
 import QtQuick.Layouts
-import ".."
+import "../"
+import "../shared/"
 
 Item {
   id: root
 
-  property real brightness: 0
+  readonly property real brightness: BrightnessState.brightness >= 0
+    ? BrightnessState.brightness
+    : 0
+  readonly property bool available: BrightnessState.available
+  readonly property bool loading: BrightnessState.loading
+  readonly property string accessibleDescription: loading
+    ? "Loading display brightness"
+    : (!available
+      ? BrightnessState.errorMessage
+      : "Brightness " + Math.round(brightness * 100) + "%")
+
+  implicitWidth: 18
+  implicitHeight: 14
+  Layout.preferredWidth: implicitWidth
+  Layout.preferredHeight: implicitHeight
 
   function refresh() {
-    if (!brightnessQuery.running)
-      brightnessQuery.exec(["brightnessctl", "-m"])
+    BrightnessState.refresh()
   }
 
   function setBrightness(value) {
-    brightnessSetter.exec([
-      "brightnessctl", "set", Math.round(value * 100) + "%"
-    ])
+    BrightnessState.setBrightness(value)
   }
 
-  Layout.preferredWidth: 18
-  Layout.preferredHeight: 14
+  function adjustBrightness(delta) {
+    BrightnessState.adjustBrightness(delta)
+  }
 
-  Component.onCompleted: refresh()
-
-  IconImage {
+  LevelIcon {
     anchors.fill: parent
-    source: {
-      if (root.brightness <= 0.33)
-        return Qt.resolvedUrl("../assets/brightness-min.svg")
-      if (root.brightness <= 0.66)
-        return Qt.resolvedUrl("../assets/brightness-med.svg")
-      return Qt.resolvedUrl("../assets/brightness-max.svg")
-    }
-
-    layer.enabled: true
-    layer.effect: MultiEffect {
-      brightness: 1
-      colorization: 1
-      colorizationColor: Theme.foreground
-    }
-  }
-
-  Process {
-    id: brightnessQuery
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const match = text.match(/(\d+)%/)
-        if (match)
-          root.brightness = Number(match[1]) / 100
-      }
-    }
-  }
-
-  Process {
-    id: brightnessSetter
-
-    onExited: root.refresh()
+    value: root.brightness
+    available: root.available
+    zeroState: root.loading
+    zeroSource: Qt.resolvedUrl("../assets/brightness-min.svg")
+    lowSource: Qt.resolvedUrl("../assets/brightness-min.svg")
+    mediumSource: Qt.resolvedUrl("../assets/brightness-med.svg")
+    highSource: Qt.resolvedUrl("../assets/brightness-max.svg")
+    iconColor: root.available ? Theme.foreground : Theme.color2
+    accessibleName: root.accessibleDescription
   }
 }

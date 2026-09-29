@@ -10,6 +10,8 @@ Item {
   property real indicatorValue: 0
   property bool indicatorVisible: false
   property color indicatorColor: Theme.color14
+  property real stepSize: 0.02
+  property string accessibleName: "Slider"
 
   signal moved(real value)
   signal wheelMoved(bool up)
@@ -32,6 +34,33 @@ Item {
 
   implicitWidth: 140
   implicitHeight: 20
+  activeFocusOnTab: true
+
+  Accessible.role: Accessible.Slider
+  Accessible.name: accessibleName
+  Accessible.description: Math.round(root.position * 100) + "%"
+  Accessible.focusable: true
+
+  function moveBy(amount) {
+    root.moved(Math.max(root.from, Math.min(root.to,
+      root.value + amount)))
+  }
+
+  Keys.onPressed: function(event) {
+    if (event.key === Qt.Key_Left || event.key === Qt.Key_Down) {
+      root.moveBy(-root.stepSize)
+      event.accepted = true
+    } else if (event.key === Qt.Key_Right || event.key === Qt.Key_Up) {
+      root.moveBy(root.stepSize)
+      event.accepted = true
+    } else if (event.key === Qt.Key_Home) {
+      root.moved(root.from)
+      event.accepted = true
+    } else if (event.key === Qt.Key_End) {
+      root.moved(root.to)
+      event.accepted = true
+    }
+  }
 
   Rectangle {
     id: track
@@ -80,7 +109,7 @@ Item {
     radius: width / 2
     color: sliderMouse.pressed ? Theme.color5 : Theme.foreground
     border.width: Theme.borderWidth
-    border.color: Theme.borderFocus
+    border.color: root.activeFocus ? Theme.color8 : Theme.borderFocus
   }
 
   MouseArea {
@@ -98,6 +127,7 @@ Item {
     cursorShape: Qt.PointingHandCursor
 
     onPressed: function(mouse) {
+      root.forceActiveFocus()
       previewValue = valueAt(mouse.x)
       root.moved(previewValue)
     }

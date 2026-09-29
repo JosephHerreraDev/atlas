@@ -105,6 +105,7 @@ Singleton {
   readonly property int motionNormal: 160
   readonly property int motionSlow: 240
   readonly property color surface: color0
+  readonly property real popupOpacity: 0.9
   readonly property color surfaceHover: color1
   readonly property color border: color2
   readonly property color borderStrong: color9

@@ -17,6 +17,11 @@ Singleton {
     hideTimer.restart()
   }
 
+  function dismiss(): void {
+    hideTimer.stop()
+    root.shown = false
+  }
+
   Timer {
     id: hideTimer
 

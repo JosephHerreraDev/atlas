@@ -5,6 +5,7 @@ Item {
   id: wrapper
 
   property real margin: Theme.spaceXxs
+  property real backgroundOpacity: 1
   property bool borderEnabled: true
   required default property Item child
 
@@ -16,7 +17,11 @@ Item {
 
     anchors.fill: parent
 
-    color: Theme.surface
+    color: Qt.rgba(
+      Theme.surface.r,
+      Theme.surface.g,
+      Theme.surface.b,
+      wrapper.backgroundOpacity)
     radius: Theme.radiusSm
     border.color: Theme.borderStrong
     border.width: wrapper.borderEnabled ? Theme.borderWidth : 0

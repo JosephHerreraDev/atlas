@@ -1,8 +1,4 @@
-import Quickshell
-import Quickshell.Services.Pipewire
-import Quickshell.Widgets
 import QtQuick
-import QtQuick.Effects
 import QtQuick.Layouts
 import "../"
 import "../shared/"
@@ -10,34 +6,42 @@ import "../shared/"
 Item {
   id: root
 
-  readonly property var sink: Pipewire.defaultAudioSink
-  readonly property real volume: sink?.audio.volume ?? 0
-  readonly property bool muted: sink?.audio.muted ?? true
+  readonly property var sink: AudioState.audioSink
+  readonly property real volume: AudioState.volume
+  readonly property bool muted: AudioState.muted
+  readonly property bool available: AudioState.outputAvailable
+  readonly property string accessibleDescription:
+    AudioState.outputDescription
 
-  Layout.preferredWidth: 18
-  Layout.preferredHeight: 14
+  implicitWidth: 18
+  implicitHeight: 14
+  Layout.preferredWidth: implicitWidth
+  Layout.preferredHeight: implicitHeight
 
-  IconImage {
-    anchors.fill: parent
-    source: {
-      if (root.muted || root.volume <= 0)
-        return Qt.resolvedUrl("../assets/volume-mute.svg")
-      if (root.volume <= 0.33)
-        return Qt.resolvedUrl("../assets/volume-min.svg")
-      if (root.volume <= 0.66)
-        return Qt.resolvedUrl("../assets/volume-med.svg")
-      return Qt.resolvedUrl("../assets/volume-max.svg")
-    }
-
-    layer.enabled: true
-    layer.effect: MultiEffect {
-      brightness: 1
-      colorization: 1
-    colorizationColor: root.muted ? Theme.color11 : Theme.foreground
+  function setVolume(value) {
+    AudioState.setOutputVolume(value)
   }
-}
 
-  PwObjectTracker {
-    objects: [root.sink]
+  function adjustVolume(delta) {
+    AudioState.adjustOutputVolume(delta)
+  }
+
+  function toggleMute() {
+    AudioState.toggleOutputMute()
+  }
+
+  LevelIcon {
+    anchors.fill: parent
+    value: root.volume
+    available: root.available
+    zeroState: root.muted
+    zeroSource: Qt.resolvedUrl("../assets/volume-mute.svg")
+    lowSource: Qt.resolvedUrl("../assets/volume-min.svg")
+    mediumSource: Qt.resolvedUrl("../assets/volume-med.svg")
+    highSource: Qt.resolvedUrl("../assets/volume-max.svg")
+    iconColor: !root.available
+      ? Theme.color2
+      : (root.muted ? Theme.color11 : Theme.foreground)
+    accessibleName: root.accessibleDescription
   }
 }

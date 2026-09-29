@@ -64,17 +64,19 @@ Scope {
 
       required property var modelData
       screen: modelData
-      focusable: clock.menuClosable
+      focusable: clock.menuClosable || system.trayRevealed
       WlrLayershell.keyboardFocus: clock.menuClosable
-        ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        ? WlrKeyboardFocus.Exclusive
+        : (system.trayRevealed
+          ? WlrKeyboardFocus.OnDemand
+          : WlrKeyboardFocus.None)
 
       HyprlandFocusGrab {
         windows: [window]
-        active: clock.calendarVisible || clock.clipboardVisible
+        active: clock.menuClosable
 
         onCleared: {
-          clock.calendarVisible = false
-          clock.closeClipboardMenu()
+          clock.closeActiveSurface()
         }
       }
 

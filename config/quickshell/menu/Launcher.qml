@@ -12,6 +12,7 @@ Scope {
   id: root
 
   property bool opened: false
+  property bool requestedOpen: false
   property bool mounted: false
   property string query: ""
   property var apps: []
@@ -19,9 +20,11 @@ Scope {
   property bool appsLoaded: false
   property int selectedIndex: -1
   property int focusRequest: 0
+  property int transitionGeneration: 0
 
   readonly property int animationDuration: Theme.motionNormal - 20
   readonly property int maxVisibleRows: 6
+  readonly property int resultRowHeight: 72
 
   function screenFocused(screen) {
     const monitor = Hyprland.monitorFor(screen)
@@ -33,14 +36,20 @@ Scope {
   function open(): void {
     MenuState.activate(root)
     hideTimer.stop()
+    requestedOpen = true
     mounted = true
     opened = false
+    const queryChanged = query.length > 0
     query = ""
-    if (!appsLoaded)
+    if (!appsLoaded) {
       refresh()
-    filter()
+    } else if (!queryChanged) {
+      filter()
+    }
+    const generation = ++transitionGeneration
     Qt.callLater(function() {
-      if (root.mounted) {
+      if (root.requestedOpen && root.mounted
+          && root.transitionGeneration === generation) {
         opened = true
         requestFocus()
       }
@@ -49,17 +58,13 @@ Scope {
 
   function close(): void {
     MenuState.deactivate(root)
+    requestedOpen = false
+    transitionGeneration += 1
     opened = false
     hideTimer.restart()
   }
 
-  function toggle(): void {
-    if (opened) {
-      close()
-    } else {
-      open()
-    }
-  }
+  function toggle(): void { requestedOpen ? close() : open() }
 
   function requestFocus(): void {
     focusRequest += 1
@@ -71,23 +76,29 @@ Scope {
 
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i]
-      if (entry.noDisplay || entry.name.length === 0)
+      const name = stringValue(entry.name)
+      if (entry.noDisplay || name.length === 0)
         continue
+
+      const genericName = stringValue(entry.genericName)
+      const comment = stringValue(entry.comment)
+      const id = stringValue(entry.id)
+      const keywords = entry.keywords
+        ? entry.keywords.join(" ")
+        : ""
 
       results.push({
         entry: entry,
-        id: entry.id,
-        name: entry.name,
-        genericName: entry.genericName,
-        comment: entry.comment,
-        icon: entry.icon,
-        search: [
-          entry.name,
-          entry.genericName,
-          entry.comment,
-          entry.id,
-          entry.keywords.join(" ")
-        ].join(" ").toLowerCase()
+        id: id,
+        name: name,
+        genericName: genericName,
+        comment: comment,
+        icon: stringValue(entry.icon),
+        normalizedName: normalizeText(name),
+        normalizedGenericName: normalizeText(genericName),
+        normalizedComment: normalizeText(comment),
+        normalizedId: normalizeText(id),
+        normalizedKeywords: normalizeText(keywords)
       })
     }
 
@@ -98,8 +109,7 @@ Scope {
   }
 
   function filter(): void {
-    const needle = query.trim().toLowerCase()
-    const results = []
+    const needle = normalizeText(query).trim()
 
     if (needle.length === 0) {
       filteredApps = apps
@@ -107,16 +117,89 @@ Scope {
       return
     }
 
+    const tokens = needle.split(/\s+/)
+    const matches = []
     for (let i = 0; i < apps.length; i++) {
       const app = apps[i]
-
-      if (app.search.indexOf(needle) !== -1) {
-        results.push(app)
-      }
+      const score = matchScore(app, needle, tokens)
+      if (score >= 0)
+        matches.push({ app: app, score: score })
     }
 
-    filteredApps = results
+    matches.sort(function(a, b) {
+      if (a.score !== b.score)
+        return b.score - a.score
+      return a.app.name.localeCompare(b.app.name)
+    })
+    filteredApps = matches.map(function(match) { return match.app })
     resetSelection()
+  }
+
+  function stringValue(value): string {
+    return value === undefined || value === null ? "" : String(value)
+  }
+
+  function normalizeText(value): string {
+    return stringValue(value).toLowerCase().normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+  }
+
+  function containsAllTokens(app, tokens): bool {
+    const searchable = [
+      app.normalizedName,
+      app.normalizedGenericName,
+      app.normalizedKeywords,
+      app.normalizedComment,
+      app.normalizedId
+    ].join(" ")
+    for (let i = 0; i < tokens.length; i++) {
+      if (searchable.indexOf(tokens[i]) === -1)
+        return false
+    }
+    return true
+  }
+
+  function hasWordPrefix(value, token): bool {
+    if (value.startsWith(token))
+      return true
+    return value.indexOf(" " + token) !== -1
+      || value.indexOf("-" + token) !== -1
+  }
+
+  function matchScore(app, needle, tokens): int {
+    if (!containsAllTokens(app, tokens))
+      return -1
+
+    let score = 0
+    if (app.normalizedName === needle)
+      score += 10000
+    else if (app.normalizedName.startsWith(needle))
+      score += 8000
+
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i]
+      if (hasWordPrefix(app.normalizedName, token))
+        score += 500
+      else if (app.normalizedName.indexOf(token) !== -1)
+        score += 350
+
+      if (hasWordPrefix(app.normalizedGenericName, token))
+        score += 200
+      else if (app.normalizedGenericName.indexOf(token) !== -1)
+        score += 140
+
+      if (hasWordPrefix(app.normalizedKeywords, token))
+        score += 120
+      else if (app.normalizedKeywords.indexOf(token) !== -1)
+        score += 90
+
+      if (app.normalizedComment.indexOf(token) !== -1)
+        score += 50
+      if (app.normalizedId.indexOf(token) !== -1)
+        score += 20
+    }
+
+    return score - Math.min(app.name.length, 100)
   }
 
   function resetSelection() {
@@ -131,26 +214,48 @@ Scope {
     return null
   }
 
-  function moveSelection(delta) {
+  function moveSelection(delta, wrap): void {
     if (filteredApps.length === 0) {
       selectedIndex = -1
       return
     }
 
-    selectedIndex = Math.max(0, Math.min(selectedIndex + delta, filteredApps.length - 1))
-  }
-
-  function launch(app) {
-    if (app === null || app.id.length === 0) {
+    if (wrap === false) {
+      selectedIndex = Math.max(0, Math.min(
+        selectedIndex + delta, filteredApps.length - 1))
       return
     }
 
-    close()
-    app.entry.execute()
+    selectedIndex = (selectedIndex + delta + filteredApps.length)
+      % filteredApps.length
+  }
+
+  function launch(app): void {
+    if (app === null || app === undefined || !app.entry
+        || app.id.length === 0) {
+      notifyLaunchFailure(app ? app.name : "Application",
+        "The desktop entry is unavailable")
+      return
+    }
+
+    try {
+      app.entry.execute()
+      close()
+    } catch (error) {
+      notifyLaunchFailure(app.name, stringValue(error))
+    }
+  }
+
+  function notifyLaunchFailure(name: string, detail: string): void {
+    Quickshell.execDetached([
+      "notify-send",
+      "Could not launch " + name,
+      detail
+    ])
   }
 
   function iconSource(icon) {
-    if (icon.length === 0) {
+    if (!icon || icon.length === 0) {
       return ""
     }
 
@@ -180,7 +285,7 @@ Scope {
     interval: root.animationDuration
     repeat: false
     onTriggered: {
-      if (!root.opened) {
+      if (!root.requestedOpen) {
         root.mounted = false
       }
     }
@@ -202,7 +307,9 @@ Scope {
       exclusionMode: ExclusionMode.Ignore
 
       WlrLayershell.layer: WlrLayer.Overlay
-      WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+      WlrLayershell.keyboardFocus: root.opened
+        ? WlrKeyboardFocus.Exclusive
+        : WlrKeyboardFocus.None
       WlrLayershell.namespace: "prometheus-launcher"
 
       anchors {
@@ -220,8 +327,10 @@ Scope {
 
       function focusInput(): void {
         Qt.callLater(function() {
-          input.forceActiveFocus()
-          input.selectAll()
+          if (root.requestedOpen && window.visible) {
+            input.forceActiveFocus()
+            input.selectAll()
+          }
         })
       }
 
@@ -259,14 +368,22 @@ Scope {
       Rectangle {
         id: panel
 
+        readonly property int responsiveVisibleRows: Math.max(1, Math.min(
+          root.maxVisibleRows,
+          Math.floor((window.height - 152) / root.resultRowHeight)))
+
         opacity: root.opened ? 1.0 : 0.0
         scale: root.opened ? 1.0 : 0.96
-        width: Math.min(480, window.width - 32)
+        width: Math.max(1, Math.min(480, window.width - 32))
         implicitHeight: content.implicitHeight + 32
         anchors.centerIn: parent
 
         radius: Theme.radiusLg
-        color: Theme.color0
+        color: Qt.rgba(
+          Theme.color0.r,
+          Theme.color0.g,
+          Theme.color0.b,
+          Theme.popupOpacity)
         border.width: Theme.borderWidth
         border.color: Theme.border
 
@@ -315,7 +432,18 @@ Scope {
             }
 
             Text {
-              text: root.appsLoaded ? root.apps.length + " available" : "Loading"
+              text: {
+                if (!root.appsLoaded)
+                  return "Loading"
+                const searching = root.query.trim().length > 0
+                const count = searching
+                  ? root.filteredApps.length
+                  : root.apps.length
+                const suffix = searching
+                  ? (count === 1 ? " match" : " matches")
+                  : " available"
+                return count + suffix
+              }
               color: Theme.color4
               font.pixelSize: Theme.fontBody
             }
@@ -334,6 +462,12 @@ Scope {
             font.pixelSize: 15
             leftPadding: 12
             rightPadding: 12
+
+            Accessible.name: "Search applications"
+            Accessible.description: root.filteredApps.length > 0
+              ? root.filteredApps.length + " results"
+              : "No results"
+
             background: Rectangle {
               radius: Theme.radiusMd
               color: Theme.color1
@@ -345,13 +479,32 @@ Scope {
             onAccepted: root.launch(root.selectedApp())
 
             Keys.onPressed: function(event) {
-              if (event.key === Qt.Key_Down && root.filteredApps.length > 0) {
+              const control = (event.modifiers & Qt.ControlModifier) !== 0
+              if ((event.key === Qt.Key_Down
+                   || (control && event.key === Qt.Key_N))
+                  && root.filteredApps.length > 0) {
                 root.moveSelection(1)
-                resultsList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
                 event.accepted = true
-              } else if (event.key === Qt.Key_Up && root.filteredApps.length > 0) {
+              } else if ((event.key === Qt.Key_Up
+                          || (control && event.key === Qt.Key_P))
+                         && root.filteredApps.length > 0) {
                 root.moveSelection(-1)
-                resultsList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+                event.accepted = true
+              } else if (event.key === Qt.Key_Home
+                         && root.filteredApps.length > 0) {
+                root.selectedIndex = 0
+                event.accepted = true
+              } else if (event.key === Qt.Key_End
+                         && root.filteredApps.length > 0) {
+                root.selectedIndex = root.filteredApps.length - 1
+                event.accepted = true
+              } else if (event.key === Qt.Key_PageDown
+                         && root.filteredApps.length > 0) {
+                root.moveSelection(panel.responsiveVisibleRows, false)
+                event.accepted = true
+              } else if (event.key === Qt.Key_PageUp
+                         && root.filteredApps.length > 0) {
+                root.moveSelection(-panel.responsiveVisibleRows, false)
                 event.accepted = true
               } else if (event.key === Qt.Key_Escape) {
                 root.close()
@@ -376,13 +529,18 @@ Scope {
 
             visible: root.filteredApps.length > 0
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.min(root.filteredApps.length, root.maxVisibleRows) * 72
+            Layout.preferredHeight: Math.min(root.filteredApps.length,
+              panel.responsiveVisibleRows) * root.resultRowHeight
             clip: true
-            interactive: root.filteredApps.length > root.maxVisibleRows
+            interactive: root.filteredApps.length
+              > panel.responsiveVisibleRows
             currentIndex: root.selectedIndex
             model: root.filteredApps
             boundsBehavior: Flickable.StopAtBounds
             spacing: Theme.spaceXs
+
+            Accessible.role: Accessible.List
+            Accessible.name: "Application results"
 
             onCurrentIndexChanged: {
               if (currentIndex >= 0) {
@@ -391,7 +549,7 @@ Scope {
             }
 
             ScrollBar.vertical: ScrollBar {
-              policy: root.filteredApps.length > root.maxVisibleRows
+              policy: root.filteredApps.length > panel.responsiveVisibleRows
                 ? ScrollBar.AsNeeded
                 : ScrollBar.AlwaysOff
             }
@@ -411,6 +569,14 @@ Scope {
               border.width: ListView.isCurrentItem || cardMouse.containsMouse
                 ? Theme.borderWidth : 0
               border.color: ListView.isCurrentItem ? Theme.borderFocus : Theme.color3
+
+              Accessible.role: Accessible.Button
+              Accessible.name: modelData.name
+              Accessible.description: modelData.comment.length > 0
+                ? modelData.comment : modelData.genericName
+              Accessible.focusable: true
+              Accessible.selected: ListView.isCurrentItem
+              Accessible.onPressAction: root.launch(modelData)
 
               RowLayout {
                 anchors {
@@ -486,11 +652,12 @@ Scope {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onEntered: {
+                onClicked: {
                   root.selectedIndex = appCard.index
+                  root.launch(appCard.modelData)
                 }
-                onClicked: root.launch(appCard.modelData)
               }
+
             }
           }
         }

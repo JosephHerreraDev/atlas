@@ -35,4 +35,7 @@ Scope {
     title: "Theme wallpapers"
   }
 
+  Bar.RecordingMenu {
+  }
+
 }

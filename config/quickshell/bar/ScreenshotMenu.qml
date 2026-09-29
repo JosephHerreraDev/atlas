@@ -1,4 +1,3 @@
-import Quickshell
 import Quickshell.Widgets
 import QtQuick
 import QtQuick.Effects
@@ -11,68 +10,94 @@ FocusScope {
   readonly property int buttonHeight: 36
   readonly property int verticalMargin: 4
   readonly property int menuHeight: buttonHeight + verticalMargin * 2
+  readonly property bool presented: screenshotVisible || recordingVisible
+  readonly property Item activeRow: recordingVisible
+    ? recordingActions
+    : screenshotActions
 
   required property bool screenshotVisible
   required property bool recordingVisible
-  required property bool recordingActive
-  required property bool recordingPaused
-  required property int elapsedSeconds
-  required property bool muted
-  required property var audioSink
+  required property bool operationBusy
 
   signal captureRequested(string mode)
   signal recordingMenuRequested()
   signal closeRequested()
 
-  readonly property bool closable: screenshotVisible || recordingVisible
-  focus: closable
+  implicitWidth: activeRow.implicitWidth
+  implicitHeight: root.menuHeight
 
-  onClosableChanged: {
-    if (closable)
-      Qt.callLater(function() { root.forceActiveFocus() })
+  function activeRepeater() {
+    return recordingVisible ? recordingActionRepeater : screenshotActionRepeater
   }
 
-  Keys.onEscapePressed: function(event) {
-    root.closeRequested()
-    event.accepted = true
+  function focusAction(index) {
+    const repeater = activeRepeater()
+    if (!repeater || repeater.count === 0)
+      return
+    const normalized = (index + repeater.count) % repeater.count
+    const item = repeater.itemAt(normalized)
+    if (item)
+      item.forceActiveFocus()
   }
 
   Shortcut {
     sequence: "Escape"
     context: Qt.WindowShortcut
-    enabled: root.closable
+    enabled: root.presented
     onActivated: root.closeRequested()
   }
-
-  function formatElapsed(seconds) {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor(seconds / 60) % 60
-    const remainingSeconds = seconds % 60
-    const paddedMinutes = String(minutes).padStart(2, "0")
-    const paddedSeconds = String(remainingSeconds).padStart(2, "0")
-    return hours > 0
-      ? hours + ":" + paddedMinutes + ":" + paddedSeconds
-      : paddedMinutes + ":" + paddedSeconds
-  }
-
-  readonly property Item activeRow: recordingActive
-    ? recordingControls
-    : (recordingVisible ? recordingActions : screenshotActions)
-
-  implicitWidth: activeRow.implicitWidth
-  implicitHeight: root.menuHeight
 
   component MenuButton: Button {
     id: button
 
     required property string icon
     required property string tooltip
+    required property int actionIndex
+    property color iconColor: button.hovered || button.activeFocus
+      ? Theme.color8
+      : Theme.foreground
+    property bool selected: false
 
     implicitWidth: 38
     implicitHeight: root.buttonHeight
     horizontalPadding: 0
     verticalPadding: 0
-    buttonBorderColor: Theme.color2
+    accessibleName: tooltip
+    enabled: !root.operationBusy
+    buttonBorderColor: selected || hovered || activeFocus
+      ? Theme.color8
+      : Theme.color2
+
+    Shortcut {
+      sequence: "Left"
+      context: Qt.WindowShortcut
+      enabled: button.activeFocus
+      onActivated: root.focusAction(button.actionIndex - 1)
+    }
+
+    Shortcut {
+      sequence: "Right"
+      context: Qt.WindowShortcut
+      enabled: button.activeFocus
+      onActivated: root.focusAction(button.actionIndex + 1)
+    }
+
+    Shortcut {
+      sequence: "Home"
+      context: Qt.WindowShortcut
+      enabled: button.activeFocus
+      onActivated: root.focusAction(0)
+    }
+
+    Shortcut {
+      sequence: "End"
+      context: Qt.WindowShortcut
+      enabled: button.activeFocus
+      onActivated: {
+        const repeater = root.activeRepeater()
+        root.focusAction(repeater ? repeater.count - 1 : 0)
+      }
+    }
 
     IconImage {
       anchors.centerIn: parent
@@ -84,9 +109,7 @@ FocusScope {
       layer.effect: MultiEffect {
         brightness: 1
         colorization: 1
-        colorizationColor: button.hovered
-          ? Theme.color8
-          : Theme.foreground
+        colorizationColor: button.iconColor
       }
     }
 
@@ -101,27 +124,54 @@ FocusScope {
     id: screenshotActions
 
     anchors.centerIn: parent
-    visible: root.screenshotVisible && !root.recordingActive
+    visible: root.screenshotVisible
     spacing: Theme.spaceXxs
 
     Repeater {
+      id: screenshotActionRepeater
       model: [
-        { icon: "../assets/screenshot-region.svg", mode: "region", tooltip: "Region" },
-        { icon: "../assets/screenshot-display.svg", mode: "display", tooltip: "Screen" },
-        { icon: "../assets/screenshot-window.svg", mode: "window", tooltip: "Window" },
-        { icon: "../assets/color-picker.svg", mode: "color", tooltip: "Color" },
-        { icon: "../assets/screen-record.svg", mode: "record", tooltip: "Record" }
+        {
+          icon: "../assets/screenshot-region.svg",
+          mode: ClockState.captureRegionMode,
+          tooltip: "Capture region"
+        },
+        {
+          icon: "../assets/screenshot-display.svg",
+          mode: ClockState.captureDisplayMode,
+          tooltip: "Choose display to capture"
+        },
+        {
+          icon: "../assets/screenshot-window.svg",
+          mode: ClockState.captureWindowMode,
+          tooltip: "Capture window"
+        },
+        {
+          icon: "../assets/color-picker.svg",
+          mode: ClockState.captureColorMode,
+          tooltip: "Pick color and copy it"
+        },
+        {
+          icon: "../assets/screen-record.svg",
+          mode: "record-menu",
+          tooltip: "Open recording options"
+        }
       ]
 
       MenuButton {
+        required property int index
         required property var modelData
+
+        actionIndex: index
         icon: modelData.icon
         tooltip: modelData.tooltip
         onClicked: {
-          if (modelData.mode === "record")
-            Qt.callLater(root.recordingMenuRequested)
-          else
+          if (modelData.mode === "record-menu") {
+            Qt.callLater(function() {
+              root.recordingMenuRequested()
+            })
+          } else {
             root.captureRequested(modelData.mode)
+          }
         }
       }
     }
@@ -131,18 +181,34 @@ FocusScope {
     id: recordingActions
 
     anchors.centerIn: parent
-    visible: root.recordingVisible && !root.recordingActive
+    visible: root.recordingVisible
     spacing: Theme.spaceXxs
 
     Repeater {
+      id: recordingActionRepeater
       model: [
-        { icon: "../assets/screenshot-region.svg", mode: "record-region", tooltip: "Record region" },
-        { icon: "../assets/screenshot-window.svg", mode: "record-window", tooltip: "Record window" },
-        { icon: "../assets/screenshot-display.svg", mode: "record-display", tooltip: "Record screen" }
+        {
+          icon: "../assets/screenshot-region.svg",
+          mode: ClockState.recordRegionMode,
+          tooltip: "Record region"
+        },
+        {
+          icon: "../assets/screenshot-window.svg",
+          mode: ClockState.recordWindowMode,
+          tooltip: "Record window"
+        },
+        {
+          icon: "../assets/screenshot-display.svg",
+          mode: ClockState.recordDisplayMode,
+          tooltip: "Choose display to record"
+        }
       ]
 
       MenuButton {
+        required property int index
         required property var modelData
+
+        actionIndex: index
         icon: modelData.icon
         tooltip: modelData.tooltip
         onClicked: root.captureRequested(modelData.mode)
@@ -150,64 +216,4 @@ FocusScope {
     }
   }
 
-  Row {
-    id: recordingControls
-    anchors.centerIn: parent
-    visible: root.recordingActive
-    spacing: Theme.spaceXs
-
-    Item {
-      implicitWidth: 38
-      implicitHeight: root.buttonHeight
-
-      IconImage {
-        anchors.centerIn: parent
-        implicitWidth: 20
-        implicitHeight: 20
-        source: Qt.resolvedUrl("../assets/screen-record.svg")
-
-        layer.enabled: true
-        layer.effect: MultiEffect {
-          brightness: 1
-          colorization: 1
-          colorizationColor: "#e74856"
-        }
-      }
-    }
-
-    Text {
-      height: root.buttonHeight
-      text: root.formatElapsed(root.elapsedSeconds)
-      color: root.recordingPaused ? Theme.color5 : Theme.foreground
-      font.family: "monospace"
-      font.pixelSize: Theme.fontCaption
-      font.weight: Theme.weightStrong
-      verticalAlignment: Text.AlignVCenter
-    }
-
-    Repeater {
-      model: [
-        { icon: "../assets/pause.svg", tooltip: root.recordingPaused ? "Resume recording" : "Pause recording", action: "pause" },
-        { icon: "../assets/stop.svg", tooltip: "Stop and save recording", action: "stop" },
-        { icon: root.muted ? "../assets/volume-mute.svg" : "../assets/volume-max.svg", tooltip: root.muted ? "Unmute volume" : "Mute volume", action: "volume" },
-        { icon: "../assets/microphone.svg", tooltip: "Toggle microphone mute", action: "microphone" }
-      ]
-
-      MenuButton {
-        required property var modelData
-        icon: modelData.icon
-        tooltip: modelData.tooltip
-        onClicked: {
-          if (modelData.action === "pause")
-            Quickshell.execDetached(["atlas-screenshot", "record-pause"])
-          else if (modelData.action === "stop")
-            Quickshell.execDetached(["atlas-screenshot", "record-stop"])
-          else if (modelData.action === "volume" && root.audioSink?.audio)
-            root.audioSink.audio.muted = !root.audioSink.audio.muted
-          else if (modelData.action === "microphone")
-            Quickshell.execDetached(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"])
-        }
-      }
-    }
-  }
 }

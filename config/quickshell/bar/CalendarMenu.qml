@@ -11,6 +11,7 @@ FocusScope {
   implicitHeight: calendar.implicitHeight + padding * 2
 
   readonly property int padding: Theme.spaceXl
+  readonly property real backgroundOpacity: Theme.popupOpacity
   required property bool calendarVisible
 
   signal closeRequested()

@@ -9,6 +9,7 @@ Item {
   required property Item target
   required property bool shown
   property real gap: 8
+  property real maximumWidth: 320
 
   PopupWindow {
     id: popup
@@ -23,7 +24,7 @@ Item {
       gravity: Edges.Bottom
     }
 
-    implicitWidth: tooltipText.implicitWidth + 12
+    implicitWidth: tooltipText.width + 12
     implicitHeight: tooltipText.implicitHeight + 6
     visible: root.shown
     color: "transparent"
@@ -41,7 +42,10 @@ Item {
         id: tooltipText
 
         anchors.centerIn: parent
+        width: Math.min(implicitWidth, root.maximumWidth)
         text: root.text
+        textFormat: Text.PlainText
+        wrapMode: Text.Wrap
         color: Theme.foreground
         font.bold: true
       }

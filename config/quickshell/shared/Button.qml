@@ -16,6 +16,7 @@ Rectangle {
   property int buttonBorderWidth: Theme.borderWidth
   property real horizontalPadding: Theme.radiusMd
   property real verticalPadding: Theme.spaceXxs
+  property string accessibleName: ""
 
   readonly property bool hovered: hoverHandler.hovered
   readonly property bool pressed: mouseArea.pressed
@@ -33,6 +34,15 @@ Rectangle {
   implicitHeight: (contentItem ? contentItem.implicitHeight : 0) + verticalPadding * 2
 
   radius: Theme.radiusSm
+  activeFocusOnTab: true
+
+  Accessible.role: Accessible.Button
+  Accessible.name: accessibleName !== ""
+    ? accessibleName
+    : (contentItem && contentItem.text !== undefined
+      ? contentItem.text
+      : "Button")
+  Accessible.focusable: true
 
   color: buttonColor
   border.width: buttonBorderWidth
@@ -90,11 +100,21 @@ Rectangle {
     cursorShape: Qt.PointingHandCursor
   }
 
+  Keys.onPressed: function(event) {
+    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+        || event.key === Qt.Key_Space) {
+      root.clicked()
+      event.accepted = true
+    }
+  }
+
   MouseArea {
     id: mouseArea
 
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+
+    onPressed: root.forceActiveFocus()
 
     onClicked: function(mouse) {
       if (mouse.button === Qt.MiddleButton) {

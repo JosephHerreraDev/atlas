@@ -5,6 +5,7 @@ Rectangle {
   id: root
 
   property bool checked: false
+  property string accessibleName: "Toggle"
   signal toggled(bool checked)
 
   implicitWidth: 34
@@ -13,7 +14,15 @@ Rectangle {
   color: checked ? Theme.color8 : Theme.color2
   opacity: enabled ? 1 : 0.5
   border.width: Theme.borderWidth
-  border.color: hoverHandler.hovered ? Theme.foreground : color
+  border.color: activeFocus || hoverHandler.hovered
+    ? Theme.foreground
+    : color
+  activeFocusOnTab: true
+
+  Accessible.role: Accessible.CheckBox
+  Accessible.name: accessibleName
+  Accessible.checked: checked
+  Accessible.focusable: true
 
   Behavior on color {
     ColorAnimation { duration: Theme.motionFast }
@@ -42,6 +51,17 @@ Rectangle {
 
   TapHandler {
     enabled: root.enabled
-    onTapped: root.toggled(!root.checked)
+    onTapped: {
+      root.forceActiveFocus()
+      root.toggled(!root.checked)
+    }
+  }
+
+  Keys.onPressed: function(event) {
+    if (event.key === Qt.Key_Space || event.key === Qt.Key_Return
+        || event.key === Qt.Key_Enter) {
+      root.toggled(!root.checked)
+      event.accepted = true
+    }
   }
 }

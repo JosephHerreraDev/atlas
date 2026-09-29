@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+# Quickshell's Process keeps an empty stdin pipe open. Selection tools interpret
+# a pipe as a list of predefined regions and wait forever instead of opening
+# their overlay, so commands which do not explicitly pipe regions need EOF.
+exec </dev/null
+
 # Quickshell may have started before a package was added to the active profile.
 export PATH="${HOME}/.nix-profile/bin:/etc/profiles/per-user/${USER}/bin:/run/current-system/sw/bin:${PATH}"
 
@@ -12,6 +17,41 @@ filename="Screenshot_${timestamp}.png"
 runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
 pid_file="${runtime_dir}/atlas-wf-recorder.pid"
 pause_file="${runtime_dir}/atlas-wf-recorder.paused"
+started_file="${runtime_dir}/atlas-wf-recorder.started"
+paused_total_file="${runtime_dir}/atlas-wf-recorder.paused-total"
+
+cleanup_recording_state() {
+  rm -f "${pid_file}" "${pause_file}" "${started_file}" "${paused_total_file}"
+}
+
+numeric_file_value() {
+  local file="${1}"
+  local fallback="${2:-0}"
+  local value
+  [[ -f "${file}" ]] || {
+    printf '%s\n' "${fallback}"
+    return
+  }
+  value="$(<"${file}")"
+  if [[ "${value}" =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "${value}"
+  else
+    printf '%s\n' "${fallback}"
+  fi
+}
+
+recording_elapsed() {
+  local now started paused_total paused_since
+  now="$(date +%s)"
+  started="$(numeric_file_value "${started_file}" "${now}")"
+  paused_total="$(numeric_file_value "${paused_total_file}" 0)"
+  paused_since=0
+  if [[ -f "${pause_file}" ]]; then
+    paused_since="$(numeric_file_value "${pause_file}" "${now}")"
+    paused_total=$((paused_total + now - paused_since))
+  fi
+  printf '%s\n' "$((now - started - paused_total))"
+}
 
 recording_pid() {
   [[ -f "${pid_file}" ]] || return 1
@@ -26,9 +66,13 @@ recording_pid() {
 case "${mode}" in
   status)
     if recording_pid >/dev/null; then
-      if [[ -f "${pause_file}" ]]; then printf 'paused\n'; else printf 'recording\n'; fi
+      if [[ -f "${pause_file}" ]]; then
+        printf 'paused %s\n' "$(recording_elapsed)"
+      else
+        printf 'recording %s\n' "$(recording_elapsed)"
+      fi
     else
-      rm -f "${pid_file}" "${pause_file}"
+      cleanup_recording_state
       printf 'stopped\n'
     fi
     exit 0
@@ -37,10 +81,14 @@ case "${mode}" in
     recorder_pid="$(recording_pid)" || exit 0
     if [[ -f "${pause_file}" ]]; then
       kill -CONT "${recorder_pid}"
+      paused_since="$(numeric_file_value "${pause_file}" "$(date +%s)")"
+      paused_total="$(numeric_file_value "${paused_total_file}" 0)"
+      printf '%s\n' "$((paused_total + $(date +%s) - paused_since))" \
+        >"${paused_total_file}"
       rm -f "${pause_file}"
     else
       kill -STOP "${recorder_pid}"
-      : >"${pause_file}"
+      date +%s >"${pause_file}"
     fi
     exit 0
     ;;
@@ -48,34 +96,58 @@ case "${mode}" in
     recorder_pid="$(recording_pid)" || exit 0
     kill -CONT "${recorder_pid}" 2>/dev/null || true
     kill -INT "${recorder_pid}"
-    rm -f "${pid_file}" "${pause_file}"
+    cleanup_recording_state
     notify-send "Screen recording saved" "${HOME}/Videos/Recordings"
     exit 0
     ;;
   record|record-region|record-window|record-display)
     recordings_dir="${HOME}/Videos/Recordings"
+    recorder_target=()
+    recorder_audio=(-a)
 
     recording_pid >/dev/null && exit 0
-    rm -f "${pid_file}" "${pause_file}"
+    cleanup_recording_state
 
     case "${mode}" in
       record|record-region)
-        geometry="$(slurp)" || exit 0
+        geometry="$(slurp)" || exit 1
+        recorder_target=(-g "${geometry}")
         ;;
       record-window)
-        geometry="$(hyprctl clients -j | jq -r '.[] | select(.mapped) | "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"' | slurp)" || exit 0
+        geometry="$(hyprctl clients -j | jq -r '.[] | select(.mapped) | "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"' | slurp)" || exit 1
+        recorder_target=(-g "${geometry}")
         ;;
       record-display)
-        geometry="$(slurp -o)" || exit 0
+        geometry="$(slurp -o)" || exit 1
+        recorder_target=(-g "${geometry}")
         ;;
     esac
-    [[ -n "${geometry}" ]] || exit 0
+
+    audio_sink="$(
+      wpctl inspect '@DEFAULT_AUDIO_SINK@' 2>/dev/null \
+        | awk -F'"' '/node.name =/ { print $2; exit }'
+    )" || true
+    if [[ -n "${audio_sink}" ]]; then
+      recorder_audio=("--audio=${audio_sink}.monitor")
+    fi
+
     mkdir -p "${recordings_dir}"
     recording_file="${recordings_dir}/Recording_${timestamp}.mp4"
     recorder_log="${runtime_dir}/atlas-wf-recorder.log"
-    wf-recorder -g "${geometry}" -f "${recording_file}" >"${recorder_log}" 2>&1 &
+    wf-recorder "${recorder_target[@]}" "${recorder_audio[@]}" \
+      -f "${recording_file}" \
+      >"${recorder_log}" 2>&1 &
     recorder_pid=$!
     printf '%s\n' "${recorder_pid}" >"${pid_file}"
+    date +%s >"${started_file}"
+    printf '0\n' >"${paused_total_file}"
+    sleep 0.15
+    if ! kill -0 "${recorder_pid}" 2>/dev/null; then
+      cleanup_recording_state
+      notify-send "Screen recording failed" \
+        "wf-recorder could not start; see ${recorder_log}"
+      exit 3
+    fi
     notify-send "Screen recording started" "Press Print Screen and select Record again to stop"
     exit 0
     ;;

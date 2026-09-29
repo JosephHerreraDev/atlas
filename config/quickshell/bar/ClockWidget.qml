@@ -1,8 +1,5 @@
 import Quickshell
-import Quickshell.Io
-import Quickshell.Services.Pipewire
 import QtQuick
-import QtQuick.Layouts
 import "../"
 import "../shared/"
 
@@ -10,315 +7,281 @@ Pill {
   id: root
 
   borderEnabled: false
+  backgroundOpacity: calendarVisible
+    ? calendarMenu.backgroundOpacity
+    : 1
 
-  readonly property int collapsedImplicitHeight: 20 + margin * 2
+  readonly property string noSurface: "none"
+  readonly property string calendarSurface: "calendar"
+  readonly property string clipboardSurface: "clipboard"
+  readonly property string screenshotSurface: "screenshot"
+  readonly property string recordingSurface: "recording"
+  readonly property int collapsedContentHeight: 20
+  readonly property int surfaceAnimationDuration: Theme.motionNormal
+
+  property string activeSurface: noSurface
+  property string pendingCaptureMode: ""
+
+  readonly property bool calendarVisible: activeSurface === calendarSurface
+  readonly property bool clipboardVisible: activeSurface === clipboardSurface
+  readonly property bool screenshotMenuVisible:
+    activeSurface === screenshotSurface
+  readonly property bool recordingMenuVisible:
+    activeSurface === recordingSurface && !ClockState.recordingActive
+  readonly property bool screenshotSurfaceVisible: screenshotMenuVisible
+    || recordingMenuVisible
+  readonly property bool recordingActive: ClockState.recordingActive
+  readonly property bool surfaceShown: activeSurface !== noSurface
+  readonly property bool menuClosable: surfaceShown
+  readonly property bool capturePending: pendingCaptureMode !== ""
+  readonly property int collapsedImplicitHeight:
+    collapsedContentHeight + margin * 2
   readonly property int maximumImplicitHeight: Math.max(
     collapsedImplicitHeight,
     calendarMenu.implicitHeight + margin * 2,
     clipboardMenu.implicitHeight + margin * 2,
     screenshotMenu.implicitHeight + margin * 2)
 
-  property bool calendarVisible: false
-  property bool screenshotMenuVisible: false
-  property bool clipboardVisible: false
-  property bool recordingMenuVisible: false
-  property bool recordingActive: false
-  property bool recordingPaused: false
-  property int recordingElapsedSeconds: 0
-  property string pendingCaptureMode: ""
-  property real lastBrightness: -1
-  readonly property var audioSink: Pipewire.defaultAudioSink
-  readonly property real volume: audioSink?.audio.volume ?? 0
-  readonly property bool muted: audioSink?.audio.muted ?? false
-  readonly property bool screenshotSurfaceShown: screenshotMenuVisible
-    || recordingMenuVisible || recordingActive
-  readonly property bool menuSurfaceShown: calendarVisible
-    || screenshotSurfaceShown || clipboardVisible
-  readonly property bool menuClosable: calendarVisible
-    || screenshotMenuVisible || recordingMenuVisible || clipboardVisible
+  function isValidSurface(surface: string): bool {
+    return surface === noSurface
+      || surface === calendarSurface
+      || surface === clipboardSurface
+      || surface === screenshotSurface
+      || surface === recordingSurface
+  }
+
+  function activateSurface(surface: string): void {
+    if (!isValidSurface(surface))
+      return
+    if ((capturePending || ClockState.captureBusy) && surface !== noSurface)
+      return
+    if (activeSurface === surface)
+      return
+
+    if (clipboardVisible)
+      clipboardMenu.close()
+
+    activeSurface = surface
+    OsdState.dismiss()
+
+    if (clipboardVisible)
+      clipboardMenu.open()
+  }
+
+  function closeActiveSurface(): void {
+    activateSurface(noSurface)
+  }
 
   function openClipboardMenu(): void {
-    calendarVisible = false
-    closeScreenshotMenu()
-    clipboardVisible = true
-    clipboardMenu.open()
+    activateSurface(clipboardSurface)
   }
 
   function closeClipboardMenu(): void {
-    clipboardVisible = false
-    clipboardMenu.close()
+    if (clipboardVisible)
+      closeActiveSurface()
+    else
+      clipboardMenu.close()
   }
 
   function toggleClipboardMenu(): void {
-    if (clipboardVisible) closeClipboardMenu()
-    else openClipboardMenu()
+    if (clipboardVisible)
+      closeClipboardMenu()
+    else
+      openClipboardMenu()
   }
 
   function toggleScreenshotMenu(): void {
-    if (root.recordingActive)
+    if (screenshotMenuVisible || recordingMenuVisible)
+      closeActiveSurface()
+    else
+      activateSurface(screenshotSurface)
+  }
+
+  function capture(mode: string): void {
+    if (!ClockState.isValidCaptureMode(mode)
+        || capturePending || ClockState.operationBusy)
       return
-    root.calendarVisible = false
-    root.closeClipboardMenu()
-    if (screenshotMenuVisible || recordingMenuVisible) {
-      screenshotMenuVisible = false
-      recordingMenuVisible = false
-    } else {
-      screenshotMenuVisible = true
-    }
-  }
-
-  function closeScreenshotMenu(): void {
-    screenshotMenuVisible = false
-    recordingMenuVisible = false
-  }
-
-  function showVolumeOsd() {
-    OsdState.show("volume", muted ? 0 : volume)
-  }
-
-  function capture(mode) {
     pendingCaptureMode = mode
-    screenshotMenuVisible = false
-    recordingMenuVisible = false
+    closeActiveSurface()
     captureDelay.restart()
   }
 
-  function showRecordingMenu() {
-    screenshotMenuVisible = false
-    recordingMenuVisible = true
+  function finishPendingCapture(): void {
+    if (!capturePending)
+      return
+    const mode = pendingCaptureMode
+    pendingCaptureMode = ""
+    ClockState.startCapture(mode)
+  }
+
+  function showRecordingMenu(): void {
+    activateSurface(recordingSurface)
   }
 
   Item {
+    width: implicitWidth
+    height: implicitHeight
     implicitWidth: clockButton.implicitWidth
     implicitHeight: clockButton.implicitHeight
 
-    PwObjectTracker {
-      objects: [root.audioSink]
-    }
-
-    Process {
-      id: brightnessQuery
-      stdout: StdioCollector {
-        onStreamFinished: {
-          const match = text.match(/(\d+)%/)
-          if (!match)
-            return
-          const value = Number(match[1]) / 100
-          if (root.lastBrightness >= 0
-              && Math.abs(value - root.lastBrightness) >= 0.005)
-            OsdState.show("brightness", value)
-          root.lastBrightness = value
-        }
-      }
-    }
-
-    Process {
-      id: recordingStatusQuery
-      stdout: StdioCollector {
-        onStreamFinished: {
-          const status = text.trim()
-          const active = status === "recording" || status === "paused"
-          if (active && !root.recordingActive)
-            root.recordingElapsedSeconds = 0
-          else if (!active)
-            root.recordingElapsedSeconds = 0
-          root.recordingActive = active
-          root.recordingPaused = status === "paused"
-        }
-      }
-    }
-
-    Timer {
-      interval: 1000
-      running: root.recordingActive
-      repeat: true
-      onTriggered: {
-        if (!root.recordingPaused)
-          root.recordingElapsedSeconds++
-      }
-    }
-
-    Timer {
-      interval: 350
-      running: true
-      repeat: true
-      triggeredOnStart: true
-      onTriggered: if (!recordingStatusQuery.running)
-        recordingStatusQuery.exec(["atlas-screenshot", "status"])
-    }
-
-    Timer {
-      interval: 400
-      running: true
-      repeat: true
-      triggeredOnStart: true
-      onTriggered: {
-        if (!brightnessQuery.running)
-          brightnessQuery.exec(["brightnessctl", "-m"])
-      }
-    }
-
     Timer {
       id: captureDelay
-      interval: 180
-      onTriggered: {
-        Quickshell.execDetached(["atlas-screenshot", root.pendingCaptureMode])
-        root.pendingCaptureMode = ""
-      }
-    }
 
-    Connections {
-      target: root.audioSink?.audio ?? null
-      function onVolumesChanged(): void { root.showVolumeOsd() }
-      function onMutedChanged(): void { root.showVolumeOsd() }
+      interval: root.surfaceAnimationDuration + 20
+      onTriggered: root.finishPendingCapture()
     }
 
     Button {
       id: clockButton
 
-      implicitHeight: root.menuSurfaceShown
-        ? (root.calendarVisible
-          ? calendarMenu.implicitHeight
-          : (root.clipboardVisible ? clipboardMenu.implicitHeight : screenshotMenu.implicitHeight))
-        : (OsdState.shown ? osd.implicitHeight : 20)
-      buttonColor: root.menuSurfaceShown
+      verticalPadding: 0
+      buttonColor: root.surfaceShown
         ? Theme.color0
         : (hovered ? Theme.color1 : Theme.color0)
       buttonBorderColor: Theme.borderFocus
 
       onClicked: {
-        if (root.clipboardVisible) {
-          root.closeClipboardMenu()
-        } else if (root.screenshotMenuVisible || root.recordingMenuVisible) {
-          root.screenshotMenuVisible = false
-          root.recordingMenuVisible = false
-        } else if (!root.recordingActive) {
-          root.calendarVisible = !root.calendarVisible
-        }
+        if (root.surfaceShown)
+          root.closeActiveSurface()
+        else
+          root.activateSurface(root.calendarSurface)
       }
 
       Item {
+        id: surfaceHost
+
         anchors.centerIn: parent
-        implicitWidth: root.menuSurfaceShown
-          ? (root.calendarVisible
-            ? calendarMenu.implicitWidth
-            : (root.clipboardVisible ? clipboardMenu.implicitWidth : screenshotMenu.implicitWidth))
-          : (OsdState.shown ? osd.implicitWidth : clockText.implicitWidth)
-        implicitHeight: root.menuSurfaceShown
-          ? (root.calendarVisible
-            ? calendarMenu.implicitHeight
-            : (root.clipboardVisible ? clipboardMenu.implicitHeight : screenshotMenu.implicitHeight))
-          : (OsdState.shown ? osd.implicitHeight : 20)
+        width: implicitWidth
+        height: implicitHeight
+        implicitWidth: {
+          if (root.calendarVisible)
+            return calendarLayer.implicitWidth
+          if (root.clipboardVisible)
+            return clipboardLayer.implicitWidth
+          if (root.screenshotMenuVisible || root.recordingMenuVisible)
+            return screenshotLayer.implicitWidth
+          return OsdState.shown
+            ? osdLayer.implicitWidth
+            : clockLayer.implicitWidth
+        }
+        implicitHeight: {
+          if (root.calendarVisible)
+            return calendarLayer.implicitHeight
+          if (root.clipboardVisible)
+            return clipboardLayer.implicitHeight
+          if (root.screenshotMenuVisible || root.recordingMenuVisible)
+            return screenshotLayer.implicitHeight
+          return root.collapsedContentHeight
+        }
 
         Behavior on implicitWidth {
           NumberAnimation {
-            duration: Theme.motionNormal
+            duration: root.screenshotSurfaceVisible
+              ? 0
+              : root.surfaceAnimationDuration
             easing.type: Easing.OutCubic
           }
         }
 
         Behavior on implicitHeight {
           NumberAnimation {
-            duration: Theme.motionNormal
+            duration: root.screenshotSurfaceVisible
+              ? 0
+              : root.surfaceAnimationDuration
             easing.type: Easing.OutCubic
           }
         }
 
-        Text {
-          id: clockText
+        AnimatedSurface {
+          id: clockLayer
+
           anchors.centerIn: parent
-          visible: opacity > 0
-          opacity: !OsdState.shown && !root.menuSurfaceShown ? 1 : 0
-          font.weight: Theme.weightStrong
-          text: Time.time
-          color: Theme.foreground
+          shown: !root.surfaceShown && !OsdState.shown
+          animationDuration: Theme.motionFast
+          hiddenScale: 1
+          hiddenOffset: 0
 
-          Behavior on opacity {
-            NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic }
-          }
-        }
+          Row {
+            spacing: Theme.spaceXs
 
-        Osd {
-          id: osd
-          anchors.centerIn: parent
-          visible: opacity > 0
-          opacity: OsdState.shown && !root.menuSurfaceShown ? 1 : 0
-          iconType: OsdState.iconType
-          value: OsdState.value
+            Rectangle {
+              anchors.verticalCenter: parent.verticalCenter
+              width: 6
+              height: 6
+              radius: 3
+              visible: root.recordingActive
+              color: Theme.color11
+            }
 
-          Behavior on opacity {
-            NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic }
-          }
-        }
-
-        ScreenshotMenu {
-          id: screenshotMenu
-          anchors.centerIn: parent
-          visible: opacity > 0
-          opacity: root.screenshotSurfaceShown ? 1 : 0
-          scale: root.screenshotSurfaceShown ? 1 : 0.92
-          screenshotVisible: root.screenshotMenuVisible
-          recordingVisible: root.recordingMenuVisible
-          recordingActive: root.recordingActive
-          recordingPaused: root.recordingPaused
-          elapsedSeconds: root.recordingElapsedSeconds
-          muted: root.muted
-          audioSink: root.audioSink
-          onCaptureRequested: function(mode) { root.capture(mode) }
-          onRecordingMenuRequested: root.showRecordingMenu()
-          onCloseRequested: root.closeScreenshotMenu()
-
-          Behavior on opacity {
-            SequentialAnimation {
-              PauseAnimation { duration: root.screenshotSurfaceShown ? 30 : 0 }
-              NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
+            Text {
+              font.weight: Theme.weightStrong
+              text: Time.time
+              color: Theme.foreground
             }
           }
+        }
 
-          Behavior on scale {
-            NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
+        AnimatedSurface {
+          id: osdLayer
+
+          anchors.centerIn: parent
+          shown: !root.surfaceShown && OsdState.shown
+          animationDuration: Theme.motionFast
+          hiddenScale: 1
+          hiddenOffset: 0
+
+          Osd {
+            iconType: OsdState.iconType
+            value: OsdState.value
           }
         }
 
-        ClipboardHistoryMenu {
-          id: clipboardMenu
-          anchors.centerIn: parent
-          visible: opacity > 0
-          opacity: root.clipboardVisible ? 1 : 0
-          scale: root.clipboardVisible ? 1 : 0.92
-          clipboardVisible: root.clipboardVisible
-          onCloseRequested: root.closeClipboardMenu()
+        AnimatedSurface {
+          id: screenshotLayer
 
-          Behavior on opacity {
-            SequentialAnimation {
-              PauseAnimation { duration: root.clipboardVisible ? 30 : 0 }
-              NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
-            }
-          }
-          Behavior on scale {
-            NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
+          anchors.centerIn: parent
+          shown: root.screenshotSurfaceVisible
+          animationDuration: 0
+
+          ScreenshotMenu {
+            id: screenshotMenu
+
+            screenshotVisible: root.screenshotMenuVisible
+            recordingVisible: root.recordingMenuVisible
+            operationBusy: ClockState.operationBusy
+            onCaptureRequested: function(mode) { root.capture(mode) }
+            onRecordingMenuRequested: root.showRecordingMenu()
+            onCloseRequested: root.closeActiveSurface()
           }
         }
 
-        CalendarMenu {
-          id: calendarMenu
+        AnimatedSurface {
+          id: clipboardLayer
 
           anchors.centerIn: parent
-          visible: opacity > 0
-          opacity: root.calendarVisible ? 1 : 0
-          scale: root.calendarVisible ? 1 : 0.92
-          calendarVisible: root.calendarVisible
-          onCloseRequested: root.calendarVisible = false
+          shown: root.clipboardVisible
+          animationDuration: root.surfaceAnimationDuration
 
-          Behavior on opacity {
-            SequentialAnimation {
-              PauseAnimation { duration: root.calendarVisible ? 30 : 0 }
-              NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
-            }
+          ClipboardHistoryMenu {
+            id: clipboardMenu
+
+            clipboardVisible: root.clipboardVisible
+            onCloseRequested: root.closeClipboardMenu()
           }
+        }
 
-          Behavior on scale {
-            NumberAnimation { duration: Theme.motionNormal; easing.type: Easing.OutCubic }
+        AnimatedSurface {
+          id: calendarLayer
+
+          anchors.centerIn: parent
+          shown: root.calendarVisible
+          animationDuration: root.surfaceAnimationDuration
+
+          CalendarMenu {
+            id: calendarMenu
+
+            calendarVisible: root.calendarVisible
+            onCloseRequested: root.closeActiveSurface()
           }
         }
       }

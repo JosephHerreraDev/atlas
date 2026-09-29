@@ -159,7 +159,11 @@ Scope {
         opacity: root.opened ? 1 : 0
         scale: root.opened ? 1 : 0.97
         radius: Theme.radiusLg
-        color: Theme.color0
+        color: Qt.rgba(
+          Theme.color0.r,
+          Theme.color0.g,
+          Theme.color0.b,
+          Theme.popupOpacity)
         border.width: Theme.borderWidth
         border.color: Theme.border
 
