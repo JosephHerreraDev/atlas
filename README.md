@@ -37,7 +37,7 @@ in after it finishes to start the configured Hyprland session.
 | `themes/` | Theme color palettes, bundled wallpapers, and application templates |
 | `configuration.nix` | NixOS system configuration and packages |
 | `flake.nix` | Flake configuration for global package versioning |
-| `home.nix` | Home Manager configuration and live config symlinks |
+| `home.nix` | Home Manager configuration, managed links, and seed-once user configuration |
 
 Theme-specific wallpapers are bundled under `themes/<theme>/wallpapers`.
 General wallpapers can be added locally under `~/Pictures/wallpapers`;
