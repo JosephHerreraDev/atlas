@@ -127,7 +127,7 @@ Scope {
                 width: 8
                 height: 8
                 radius: 4
-                color: Theme.color11
+                color: Theme.error
               }
             }
 
@@ -139,7 +139,7 @@ Scope {
                 : root.formatElapsed(ClockState.recordingElapsedSeconds)
               textFormat: Text.PlainText
               color: ClockState.operationBusy || ClockState.recordingPaused
-                ? Theme.color5
+                ? Theme.foregroundMuted
                 : Theme.foreground
               font.family: Qt.application.font.family
               font.pixelSize: Theme.fontCaption
@@ -159,8 +159,8 @@ Scope {
                 tooltip: root.actionTooltip(modelData)
                 selected: root.actionSelected(modelData)
                 iconColor: selected
-                  ? Theme.color11
-                  : (hovered ? Theme.color8 : Theme.foreground)
+                  ? Theme.error
+                  : (hovered ? Theme.accent : Theme.foreground)
                 enabled: !ClockState.operationBusy
                 onClicked: ClockState.performRecordingAction(modelData)
               }
@@ -178,14 +178,14 @@ Scope {
     required property string tooltip
     property bool selected: false
     property real iconRotation: 0
-    property color iconColor: hovered ? Theme.color8 : Theme.foreground
+    property color iconColor: hovered ? Theme.accent : Theme.foreground
 
     implicitWidth: 38
     implicitHeight: 36
     horizontalPadding: 0
     verticalPadding: 0
     accessibleName: tooltip
-    buttonBorderColor: selected || hovered ? Theme.color8 : Theme.color2
+    buttonBorderColor: selected || hovered ? Theme.accent : Theme.border
 
     IconImage {
       anchors.centerIn: parent

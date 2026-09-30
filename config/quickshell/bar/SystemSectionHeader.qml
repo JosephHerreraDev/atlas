@@ -21,7 +21,7 @@ RowLayout {
     Layout.preferredHeight: Theme.controlHeight
     horizontalPadding: 0
     accessibleName: "Back"
-    buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+    buttonBorderColor: hovered ? Theme.accent : Theme.border
     onClicked: root.backRequested()
 
     Text {

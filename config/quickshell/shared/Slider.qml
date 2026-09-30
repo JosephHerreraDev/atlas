@@ -9,7 +9,7 @@ Item {
   property real value: 0
   property real indicatorValue: 0
   property bool indicatorVisible: false
-  property color indicatorColor: Theme.color14
+  property color indicatorColor: Theme.success
   property real stepSize: 0.02
   property string accessibleName: "Slider"
 
@@ -72,13 +72,13 @@ Item {
     anchors.rightMargin: handle.width / 2
     height: 4
     radius: height / 2
-    color: Theme.color2
+    color: Theme.border
 
     Rectangle {
       width: parent.width * root.position
       height: parent.height
       radius: parent.radius
-      color: Theme.color8
+      color: Theme.accent
     }
 
     Rectangle {
@@ -107,9 +107,9 @@ Item {
     width: 12
     height: 12
     radius: width / 2
-    color: sliderMouse.pressed ? Theme.color5 : Theme.foreground
+    color: sliderMouse.pressed ? Theme.foregroundMuted : Theme.foreground
     border.width: Theme.borderWidth
-    border.color: root.activeFocus ? Theme.color8 : Theme.borderFocus
+    border.color: root.activeFocus ? Theme.accent : Theme.borderFocus
   }
 
   MouseArea {

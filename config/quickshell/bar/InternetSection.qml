@@ -63,7 +63,7 @@ SystemSection {
       Layout.preferredWidth: 24
       Layout.preferredHeight: root.controlHeight
       horizontalPadding: 0
-      buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+      buttonBorderColor: hovered ? Theme.accent : Theme.border
       accessibleName: "Back to system settings"
       onClicked: root.backRequested()
 
@@ -96,7 +96,7 @@ SystemSection {
   Rectangle {
     width: parent.width
     height: 1
-    color: Theme.color2
+    color: Theme.border
   }
 
   Text {
@@ -105,7 +105,7 @@ SystemSection {
     text: Networking.wifiHardwareEnabled
       ? "Turn on Wi-Fi to search nearby networks"
       : "Wi-Fi is unavailable"
-    color: Theme.color2
+    color: Theme.border
     font.pixelSize: root.captionFontSize
     horizontalAlignment: Text.AlignHCenter
   }
@@ -136,7 +136,7 @@ SystemSection {
       enabled: !modelData.stateChanging
       accessibleName: "Disconnect from "
         + (modelData.name || "unknown network")
-      buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+      buttonBorderColor: hovered ? Theme.accent : Theme.border
       onClicked: modelData.disconnect()
 
       RowLayout {
@@ -152,7 +152,7 @@ SystemSection {
             Layout.fillWidth: true
             text: modelData.name || "Unknown network"
             textFormat: Text.PlainText
-            color: Theme.color8
+            color: Theme.accent
             font.pixelSize: root.bodyFontSize
             elide: Text.ElideRight
           }
@@ -162,7 +162,7 @@ SystemSection {
             visible: modelData === root.primaryConnectedNetwork
             text: "↓ " + root.formatNetworkSpeed(root.networkDownloadSpeed)
               + "   ↑ " + root.formatNetworkSpeed(root.networkUploadSpeed)
-            color: Theme.color5
+            color: Theme.foregroundMuted
             font.pixelSize: root.captionFontSize
             elide: Text.ElideRight
           }
@@ -180,14 +180,14 @@ SystemSection {
   Text {
     visible: root.connectedNetworks.length === 0
     text: "None"
-    color: Theme.color2
+    color: Theme.border
     font.pixelSize: root.captionFontSize
   }
 
   Rectangle {
     width: parent.width
     height: 1
-    color: Theme.color2
+    color: Theme.border
   }
 
   Text {
@@ -214,7 +214,7 @@ SystemSection {
         enabled: !modelData.stateChanging
         accessibleName: "Connect to "
           + (modelData.name || "unknown network")
-        buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+        buttonBorderColor: hovered ? Theme.accent : Theme.border
         onClicked: root.connectNetwork(modelData)
 
         RowLayout {
@@ -233,7 +233,7 @@ SystemSection {
 
           Text {
             text: modelData.stateChanging ? "Working…" : "Connect"
-            color: Theme.color8
+            color: Theme.accent
             font.pixelSize: root.captionFontSize
           }
         }
@@ -250,14 +250,14 @@ SystemSection {
           ? "Confirm forgetting " + (modelData.name || "network")
           : "Forget " + (modelData.name || "network")
         buttonBorderColor: confirming || hovered
-          ? Theme.color11
-          : Theme.color2
+          ? Theme.error
+          : Theme.border
         onClicked: root.requestWifiForget(modelData)
 
         Text {
           anchors.centerIn: parent
           text: parent.confirming ? "Confirm?" : "Forget"
-          color: Theme.color11
+          color: Theme.error
           font.pixelSize: root.captionFontSize
         }
       }
@@ -267,14 +267,14 @@ SystemSection {
   Text {
     visible: root.availableNetworks.length === 0
     text: "None"
-    color: Theme.color2
+    color: Theme.border
     font.pixelSize: root.captionFontSize
   }
 
   Rectangle {
     width: parent.width
     height: 1
-    color: Theme.color2
+    color: Theme.border
   }
 
   Text {
@@ -301,8 +301,8 @@ SystemSection {
         accessibleName: "Connect to "
           + (modelData.name || "unknown network")
         buttonBorderColor: root.pendingWifiNetwork === modelData
-          ? Theme.color8
-          : (hovered ? Theme.color8 : Theme.color2)
+          ? Theme.accent
+          : (hovered ? Theme.accent : Theme.border)
         onClicked: root.connectNetwork(modelData)
 
         RowLayout {
@@ -326,7 +326,7 @@ SystemSection {
             Text {
               Layout.fillWidth: true
               text: Math.round(modelData.signalStrength * 100) + "% signal"
-              color: Theme.color5
+              color: Theme.foregroundMuted
               font.pixelSize: root.captionFontSize
               elide: Text.ElideRight
             }
@@ -334,7 +334,7 @@ SystemSection {
 
           Text {
             text: modelData.stateChanging ? "Working…" : "Connect"
-            color: Theme.color8
+            color: Theme.accent
             font.pixelSize: root.captionFontSize
           }
         }
@@ -347,9 +347,9 @@ SystemSection {
         height: passwordForm.implicitHeight + root.spaceLg * 2
         visible: root.pendingWifiNetwork === modelData
         radius: Theme.radiusSm
-        color: Theme.color0
+        color: Theme.surface
         border.width: Theme.borderWidth
-        border.color: Theme.color8
+        border.color: Theme.accent
 
         onVisibleChanged: {
           if (visible)
@@ -378,11 +378,11 @@ SystemSection {
             width: parent.width
             height: root.controlHeight
             radius: Theme.radiusSm
-            color: Theme.background
+            color: Theme.surface
             border.width: Theme.borderWidth
             border.color: wifiPasswordInput.activeFocus
-              ? Theme.color8
-              : Theme.color2
+              ? Theme.accent
+              : Theme.border
 
             TextInput {
               id: wifiPasswordInput
@@ -407,7 +407,7 @@ SystemSection {
               visible: root.wifiConnectionMessage !== ""
               text: root.wifiConnectionMessage
               textFormat: Text.PlainText
-            color: Theme.color11
+            color: Theme.error
             font.pixelSize: root.captionFontSize
             wrapMode: Text.WordWrap
           }
@@ -438,13 +438,13 @@ SystemSection {
               accessibleName: root.wifiConnecting
                 ? "Connecting to Wi-Fi"
                 : "Connect to Wi-Fi"
-              buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+              buttonBorderColor: hovered ? Theme.accent : Theme.border
               onClicked: root.connectPendingNetwork()
 
               Text {
                 anchors.centerIn: parent
                 text: root.wifiConnecting ? "Connecting…" : "Connect"
-                color: Theme.color8
+                color: Theme.accent
                 font.pixelSize: root.captionFontSize
               }
             }
@@ -458,7 +458,7 @@ SystemSection {
   Text {
     visible: root.closeNetworks.length === 0
     text: "None"
-    color: Theme.color2
+    color: Theme.border
     font.pixelSize: root.captionFontSize
   }
   }

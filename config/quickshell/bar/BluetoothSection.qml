@@ -77,7 +77,7 @@ SystemSection {
       Layout.preferredWidth: 24
       Layout.preferredHeight: root.controlHeight
       horizontalPadding: 0
-      buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+      buttonBorderColor: hovered ? Theme.accent : Theme.border
       accessibleName: "Back to system settings"
       onClicked: root.backRequested()
 
@@ -116,7 +116,7 @@ SystemSection {
   Rectangle {
     width: parent.width
     height: 1
-    color: Theme.color2
+    color: Theme.border
   }
 
   Text {
@@ -124,7 +124,7 @@ SystemSection {
     visible: !root.bluetoothAdapter || !root.bluetoothAdapter.enabled
     text: root.bluetoothAdapterStatus()
     textFormat: Text.PlainText
-    color: Theme.color2
+    color: Theme.border
     font.pixelSize: root.captionFontSize
     horizontalAlignment: Text.AlignHCenter
   }
@@ -158,7 +158,7 @@ SystemSection {
           enabled: modelData.state === BluetoothService.BluetoothDeviceState.Connected
           accessibleName: "Disconnect "
             + root.bluetoothDeviceName(modelData)
-          buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+          buttonBorderColor: hovered ? Theme.accent : Theme.border
           onClicked: modelData.disconnect()
 
           RowLayout {
@@ -174,7 +174,7 @@ SystemSection {
                 Layout.fillWidth: true
                 text: root.bluetoothDeviceName(modelData)
                 textFormat: Text.PlainText
-                color: Theme.color8
+                color: Theme.accent
                 font.pixelSize: root.bodyFontSize
                 elide: Text.ElideRight
               }
@@ -183,7 +183,7 @@ SystemSection {
                 Layout.fillWidth: true
                 visible: modelData.batteryAvailable
                 text: Math.round(modelData.battery * 100) + "% battery"
-                color: Theme.color5
+                color: Theme.foregroundMuted
                 font.pixelSize: root.captionFontSize
                 elide: Text.ElideRight
               }
@@ -206,13 +206,13 @@ SystemSection {
           accessibleName: confirming
             ? "Confirm forgetting " + root.bluetoothDeviceName(modelData)
             : "Forget " + root.bluetoothDeviceName(modelData)
-          buttonBorderColor: confirming || hovered ? Theme.color11 : Theme.color2
+          buttonBorderColor: confirming || hovered ? Theme.error : Theme.border
           onClicked: root.requestBluetoothForget(modelData)
 
           Text {
             anchors.centerIn: parent
             text: parent.confirming ? "Confirm?" : "Forget"
-            color: Theme.color11
+            color: Theme.error
             font.pixelSize: root.captionFontSize
           }
         }
@@ -222,14 +222,14 @@ SystemSection {
     Text {
       visible: root.connectedBluetoothDevices.length === 0
       text: "None"
-      color: Theme.color2
+      color: Theme.border
       font.pixelSize: root.captionFontSize
     }
 
     Rectangle {
       width: parent.width
       height: 1
-      color: Theme.color2
+      color: Theme.border
     }
 
     Text {
@@ -257,7 +257,7 @@ SystemSection {
             && root.bluetoothPairingAddress === ""
           accessibleName: "Connect "
             + root.bluetoothDeviceName(modelData)
-          buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+          buttonBorderColor: hovered ? Theme.accent : Theme.border
           onClicked: root.connectBluetoothDevice(modelData)
 
           RowLayout {
@@ -278,7 +278,7 @@ SystemSection {
               text: root.bluetoothPairingAddress === modelData.address
                 ? "Connecting…"
                 : root.bluetoothDeviceActionText(modelData, "Connect")
-              color: Theme.color8
+              color: Theme.accent
               font.pixelSize: root.captionFontSize
             }
           }
@@ -293,13 +293,13 @@ SystemSection {
           accessibleName: confirming
             ? "Confirm forgetting " + root.bluetoothDeviceName(modelData)
             : "Forget " + root.bluetoothDeviceName(modelData)
-          buttonBorderColor: confirming || hovered ? Theme.color11 : Theme.color2
+          buttonBorderColor: confirming || hovered ? Theme.error : Theme.border
           onClicked: root.requestBluetoothForget(modelData)
 
           Text {
             anchors.centerIn: parent
             text: parent.confirming ? "Confirm?" : "Forget"
-            color: Theme.color11
+            color: Theme.error
             font.pixelSize: root.captionFontSize
           }
         }
@@ -309,14 +309,14 @@ SystemSection {
     Text {
       visible: root.availableBluetoothDevices.length === 0
       text: "None"
-      color: Theme.color2
+      color: Theme.border
       font.pixelSize: root.captionFontSize
     }
 
     Rectangle {
       width: parent.width
       height: 1
-      color: Theme.color2
+      color: Theme.border
     }
 
     RowLayout {
@@ -337,14 +337,14 @@ SystemSection {
         accessibleName: SystemState.bluetoothScanRequested
           ? "Stop Bluetooth scan"
           : "Scan for Bluetooth devices"
-        buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+        buttonBorderColor: hovered ? Theme.accent : Theme.border
         onClicked: SystemState.requestBluetoothScan(
           !SystemState.bluetoothScanRequested)
 
         Text {
           anchors.centerIn: parent
           text: SystemState.bluetoothScanRequested ? "Stop" : "Scan"
-          color: Theme.color8
+          color: Theme.accent
           font.pixelSize: root.captionFontSize
         }
       }
@@ -366,7 +366,7 @@ SystemSection {
         accessibleName: pairing
           ? "Cancel pairing " + root.bluetoothDeviceName(modelData)
           : "Pair " + root.bluetoothDeviceName(modelData)
-        buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+        buttonBorderColor: hovered ? Theme.accent : Theme.border
         onClicked: {
           if (pairing)
             root.cancelBluetoothPairing(modelData)
@@ -390,7 +390,7 @@ SystemSection {
 
           Text {
             text: nearbyDeviceButton.pairing ? "Cancel" : "Pair"
-            color: nearbyDeviceButton.pairing ? Theme.color11 : Theme.color8
+            color: nearbyDeviceButton.pairing ? Theme.info : Theme.accent
             font.pixelSize: root.captionFontSize
           }
         }
@@ -402,9 +402,9 @@ SystemSection {
       height: bluetoothPromptForm.implicitHeight + root.spaceLg * 2
       visible: root.bluetoothPromptType !== ""
       radius: Theme.radiusSm
-      color: Theme.color0
+      color: Theme.surface
       border.width: Theme.borderWidth
-      border.color: Theme.color8
+      border.color: Theme.accent
 
       Column {
         id: bluetoothPromptForm
@@ -429,11 +429,11 @@ SystemSection {
           height: root.controlHeight
           visible: root.bluetoothPromptType === "input"
           radius: Theme.radiusSm
-          color: Theme.background
+          color: Theme.surface
           border.width: Theme.borderWidth
           border.color: bluetoothCodeInput.activeFocus
-            ? Theme.color8
-            : Theme.color2
+            ? Theme.accent
+            : Theme.border
 
           TextInput {
             id: bluetoothCodeInput
@@ -464,7 +464,7 @@ SystemSection {
             Text {
               anchors.centerIn: parent
               text: "Reject"
-              color: Theme.color11
+              color: Theme.error
               font.pixelSize: root.captionFontSize
             }
           }
@@ -477,7 +477,7 @@ SystemSection {
             accessibleName: root.bluetoothPromptType === "input"
               ? "Submit Bluetooth pairing code"
               : "Confirm Bluetooth pairing code"
-            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+            buttonBorderColor: hovered ? Theme.accent : Theme.border
             onClicked: SystemState.submitBluetoothPrompt(true)
 
             Text {
@@ -485,7 +485,7 @@ SystemSection {
               text: root.bluetoothPromptType === "input"
                 ? "Submit"
                 : "Confirm"
-              color: Theme.color8
+              color: Theme.accent
               font.pixelSize: root.captionFontSize
             }
           }
@@ -498,7 +498,7 @@ SystemSection {
       visible: root.bluetoothPairingMessage !== ""
       text: root.bluetoothPairingMessage
       textFormat: Text.PlainText
-      color: Theme.color11
+      color: Theme.error
       font.pixelSize: root.captionFontSize
       wrapMode: Text.WordWrap
     }
@@ -506,7 +506,7 @@ SystemSection {
     Text {
       visible: root.closeBluetoothDevices.length === 0
       text: root.bluetoothAdapter?.discovering ? "Searching…" : "None found"
-      color: Theme.color2
+      color: Theme.border
       font.pixelSize: root.captionFontSize
     }
   }

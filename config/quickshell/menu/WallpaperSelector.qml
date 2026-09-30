@@ -160,9 +160,9 @@ Scope {
         scale: root.opened ? 1 : 0.97
         radius: Theme.radiusLg
         color: Qt.rgba(
-          Theme.color0.r,
-          Theme.color0.g,
-          Theme.color0.b,
+          Theme.surface.r,
+          Theme.surface.g,
+          Theme.surface.b,
           Theme.popupOpacity)
         border.width: Theme.borderWidth
         border.color: Theme.border
@@ -225,13 +225,13 @@ Scope {
             Text {
               Layout.fillWidth: true
               text: root.title
-              color: Theme.color6
+              color: Theme.foreground
               font.pixelSize: Theme.fontDisplay
               font.weight: Theme.weightStrong
             }
             Text {
               text: root.wallpapers.length + " available"
-              color: Theme.color4
+              color: Theme.foreground
               font.pixelSize: Theme.fontBody
             }
           }
@@ -241,7 +241,7 @@ Scope {
             Layout.fillWidth: true
             Layout.fillHeight: true
             text: listProcess.running ? "Loading wallpapers..." : "No wallpapers available"
-            color: Theme.color4
+            color: Theme.foreground
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
           }
@@ -313,7 +313,7 @@ Scope {
               anchors.verticalCenter: parent.verticalCenter
               z: selected ? 2 : (hovered ? 1 : 0)
               radius: Theme.radiusLg
-              color: selected || hovered ? Theme.color2 : Theme.color1
+              color: selected || hovered ? Theme.border : Theme.surfaceHover
               opacity: selected ? 1 : (hovered ? 0.92 : 0.72)
               scale: selected ? 1 : (hovered ? 0.97 : 0.94)
               clip: true
@@ -352,8 +352,8 @@ Scope {
                 color: "transparent"
                 border.width: wallpaperCard.selected
                   ? Theme.spaceXxs : Theme.borderWidth
-                border.color: wallpaperCard.selected ? Theme.color8
-                  : (wallpaperCard.hovered ? Theme.color9 : Theme.color2)
+                border.color: wallpaperCard.selected ? Theme.accent
+                  : (wallpaperCard.hovered ? Theme.accent : Theme.border)
 
                 Behavior on border.color {
                   ColorAnimation { duration: root.selectionDuration }

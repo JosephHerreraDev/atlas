@@ -25,14 +25,14 @@ SystemSection {
   Rectangle {
     width: parent.width
     height: Theme.borderWidth
-    color: Theme.color2
+    color: Theme.border
   }
 
   Text {
     width: parent.width
     visible: !AudioState.serviceReady
     text: "Sound devices are unavailable"
-    color: Theme.color2
+    color: Theme.border
     font.pixelSize: Theme.fontCaption
     horizontalAlignment: Text.AlignHCenter
   }
@@ -57,8 +57,8 @@ SystemSection {
         accessibleName: (selected ? "Selected " : "Select ")
           + AudioState.audioDeviceName(modelData, "Unknown device")
         buttonBorderColor: selected
-          ? Theme.color8
-          : (hovered ? Theme.color8 : Theme.color2)
+          ? Theme.accent
+          : (hovered ? Theme.accent : Theme.border)
         onClicked: AudioState.selectDevice(root.direction, modelData)
 
         RowLayout {
@@ -71,14 +71,14 @@ SystemSection {
             Layout.fillWidth: true
             text: AudioState.audioDeviceName(modelData, "Unknown device")
             textFormat: Text.PlainText
-            color: deviceButton.selected ? Theme.color8 : Theme.foreground
+            color: deviceButton.selected ? Theme.accent : Theme.foreground
             font.pixelSize: Theme.fontBody
             elide: Text.ElideRight
           }
 
           Text {
             text: deviceButton.selected ? "Selected" : "Select"
-            color: Theme.color8
+            color: Theme.accent
             font.pixelSize: Theme.fontCaption
           }
         }
@@ -89,7 +89,7 @@ SystemSection {
       width: parent.width
       visible: root.devices.length === 0
       text: "No " + root.direction + " devices found"
-      color: Theme.color2
+      color: Theme.border
       font.pixelSize: Theme.fontCaption
       horizontalAlignment: Text.AlignHCenter
     }

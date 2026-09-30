@@ -33,7 +33,7 @@ Item {
     Rectangle {
       anchors.fill: parent
 
-      color: Theme.color1
+      color: Theme.surfaceHover
       border.color: Theme.borderFocus
       border.width: Theme.borderWidth
       radius: Theme.radiusSm

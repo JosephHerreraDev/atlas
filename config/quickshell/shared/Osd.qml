@@ -35,13 +35,13 @@ Item {
       width: parent.width - 30
       height: 7
       radius: 3.5
-      color: Theme.color2
+      color: Theme.border
 
       Rectangle {
         width: parent.width * root.normalizedValue
         height: parent.height
         radius: parent.radius
-        color: Theme.color8
+        color: Theme.accent
 
         Behavior on width {
           NumberAnimation {

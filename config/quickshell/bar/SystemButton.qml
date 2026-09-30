@@ -149,7 +149,7 @@ Item {
             brightness: 1
             colorization: 1
             colorizationColor: root.hasNotifications
-              ? Theme.color8
+              ? Theme.accent
               : Theme.foreground
           }
         }
@@ -254,7 +254,7 @@ Item {
         Rectangle {
           width: parent.width
           height: 1
-          color: Theme.color2
+          color: Theme.border
         }
 
         RowLayout {
@@ -266,7 +266,7 @@ Item {
             Layout.preferredWidth: 0
             Layout.preferredHeight: 40
             Layout.alignment: Qt.AlignTop
-            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+            buttonBorderColor: hovered ? Theme.accent : Theme.border
             accessibleName: "Open internet settings"
             onClicked: root.setSection(SystemState.internetSection)
 
@@ -282,7 +282,7 @@ Item {
             Layout.preferredWidth: 0
             Layout.preferredHeight: 40
             Layout.alignment: Qt.AlignTop
-            buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+            buttonBorderColor: hovered ? Theme.accent : Theme.border
             accessibleName: "Open Bluetooth settings"
             onClicked: root.setSection(SystemState.bluetoothSection)
 
@@ -301,7 +301,7 @@ Item {
             accessibleName: notifications.doNotDisturb
               ? "Disable do not disturb"
               : "Enable do not disturb"
-            buttonBorderColor: notifications.doNotDisturb ? Theme.color8 : (hovered ? Theme.color8 : Theme.color2)
+            buttonBorderColor: notifications.doNotDisturb ? Theme.accent : (hovered ? Theme.accent : Theme.border)
             onClicked: notifications.doNotDisturb = !notifications.doNotDisturb
 
             IconImage {
@@ -313,7 +313,7 @@ Item {
               layer.effect: MultiEffect {
                 brightness: 1
                 colorization: 1
-                colorizationColor: notifications.doNotDisturb ? Theme.color8 : Theme.foreground
+                colorizationColor: notifications.doNotDisturb ? Theme.accent : Theme.foreground
               }
             }
           }
@@ -323,9 +323,9 @@ Item {
           width: parent.width
           implicitHeight: audioSectionColumn.implicitHeight + root.spaceMd * 2
           radius: Theme.radiusSm
-          color: Theme.background
+          color: Theme.surface
           border.width: Theme.borderWidth
-          border.color: Theme.color2
+          border.color: Theme.border
 
           Column {
             id: audioSectionColumn
@@ -350,7 +350,7 @@ Item {
                     ? "Unmute audio output"
                     : "Mute audio output")
                 horizontalPadding: 0
-                buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+                buttonBorderColor: hovered ? Theme.accent : Theme.border
                 onClicked: volume.toggleMute()
 
                 Volume {
@@ -388,7 +388,7 @@ Item {
                     ? "Unmute microphone"
                     : "Mute microphone")
                 horizontalPadding: 0
-                buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+                buttonBorderColor: hovered ? Theme.accent : Theme.border
                 onClicked: AudioState.toggleInputMute()
 
                 IconImage {
@@ -402,7 +402,7 @@ Item {
                     brightness: 1
                     colorization: 1
                     colorizationColor: AudioState.microphoneMuted
-                      ? Theme.color11
+                      ? Theme.error
                       : Theme.foreground
                   }
                 }
@@ -437,7 +437,7 @@ Item {
             Rectangle {
               width: parent.width
               height: 1
-              color: Theme.color2
+              color: Theme.border
             }
 
             RowLayout {
@@ -449,7 +449,7 @@ Item {
                 Layout.preferredWidth: 0
                 Layout.preferredHeight: 42
                 enabled: AudioState.audioOutputs.length > 0
-                buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+                buttonBorderColor: hovered ? Theme.accent : Theme.border
                 accessibleName: "Choose audio output"
                 onClicked: root.setSection("soundOutput")
 
@@ -464,7 +464,7 @@ Item {
                   Text {
                     width: parent.width
                     text: "Output"
-                    color: Theme.color5
+                    color: Theme.foregroundMuted
                     font.pixelSize: root.captionFontSize
                     elide: Text.ElideRight
                   }
@@ -486,7 +486,7 @@ Item {
                 Layout.preferredWidth: 0
                 Layout.preferredHeight: 42
                 enabled: AudioState.audioInputs.length > 0
-                buttonBorderColor: hovered ? Theme.color8 : Theme.color2
+                buttonBorderColor: hovered ? Theme.accent : Theme.border
                 accessibleName: "Choose audio input"
                 onClicked: root.setSection("soundInput")
 
@@ -501,7 +501,7 @@ Item {
                   Text {
                     width: parent.width
                     text: "Input"
-                    color: Theme.color5
+                    color: Theme.foregroundMuted
                     font.pixelSize: root.captionFontSize
                     elide: Text.ElideRight
                   }
@@ -561,7 +561,7 @@ Item {
             && !BrightnessState.available
           text: BrightnessState.errorMessage
           textFormat: Text.PlainText
-          color: Theme.color11
+          color: Theme.error
           font.pixelSize: root.captionFontSize
           horizontalAlignment: Text.AlignHCenter
           wrapMode: Text.WordWrap

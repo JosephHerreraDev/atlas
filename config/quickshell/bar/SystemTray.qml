@@ -288,7 +288,7 @@ FocusScope {
           brightness: 1
           colorization: 1
           colorizationColor: trayToggle.hovered || root.revealed
-            ? Theme.color8
+            ? Theme.accent
             : Theme.foreground
         }
       }

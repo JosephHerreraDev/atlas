@@ -209,9 +209,9 @@ Scope {
         scale: root.opened ? 1 : 0.96
         radius: Theme.radiusLg
         color: Qt.rgba(
-          Theme.color0.r,
-          Theme.color0.g,
-          Theme.color0.b,
+          Theme.surface.r,
+          Theme.surface.g,
+          Theme.surface.b,
           Theme.popupOpacity)
         border.width: Theme.borderWidth
         border.color: Theme.border
@@ -289,12 +289,12 @@ Scope {
                   height: root.actionSize
                   radius: Theme.radiusMd
                   color: selected || actionMouse.containsMouse
-                    ? Theme.color3 : Theme.color1
+                    ? Theme.selectionBackground : Theme.surfaceHover
                   border.width: selected || actionMouse.containsMouse
                     ? Theme.borderWidth : 0
                   border.color: root.pendingConfirmationIndex === index
-                    ? Theme.color11
-                    : (selected ? Theme.selectionForeground : Theme.color3)
+                    ? Theme.error
+                    : (selected ? Theme.selectionForeground : Theme.selectionBackground)
 
                   Accessible.role: Accessible.Button
                   Accessible.name: modelData.name
@@ -332,7 +332,7 @@ Scope {
                       text: root.pendingConfirmationIndex === actionRow.index
                         ? "Confirm?" : actionRow.modelData.name
                       color: root.pendingConfirmationIndex === actionRow.index
-                        ? Theme.color11
+                        ? Theme.error
                         : (actionRow.selected || actionMouse.containsMouse
                           ? Theme.selectionForeground : Theme.foreground)
                       font.pixelSize: Theme.fontBody

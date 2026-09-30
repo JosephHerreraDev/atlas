@@ -136,8 +136,8 @@ Pill {
 
       verticalPadding: 0
       buttonColor: root.surfaceShown
-        ? Theme.color0
-        : (hovered ? Theme.color1 : Theme.color0)
+        ? Theme.surface
+        : (hovered ? Theme.surfaceHover : Theme.surface)
       buttonBorderColor: Theme.borderFocus
 
       onClicked: {
@@ -210,7 +210,7 @@ Pill {
               height: 6
               radius: 3
               visible: root.recordingActive
-              color: Theme.color11
+              color: Theme.error
             }
 
             Text {

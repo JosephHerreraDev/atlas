@@ -140,7 +140,7 @@ Scope {
   }
 
   function validColor(value): bool {
-    return /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(value || "")
+    return /^#[0-9a-fA-F]{6}$/.test(value || "")
   }
 
   function finishRefresh(): void {
@@ -192,7 +192,7 @@ Scope {
           palettes[name] = {
             background: fields.shift(),
             foreground: fields.shift(),
-            accents: fields
+            previewColors: fields
           }
         })
         root.pendingPalettes = palettes
@@ -310,9 +310,9 @@ Scope {
         scale: root.opened ? 1 : 0.96
         radius: Theme.radiusLg
         color: Qt.rgba(
-          Theme.color0.r,
-          Theme.color0.g,
-          Theme.color0.b,
+          Theme.surface.r,
+          Theme.surface.g,
+          Theme.surface.b,
           Theme.popupOpacity)
         border.width: Theme.borderWidth
         border.color: Theme.border
@@ -331,7 +331,7 @@ Scope {
             Text {
               Layout.fillWidth: true
               text: "Themes"
-              color: Theme.color6
+              color: Theme.foreground
               font.pixelSize: Theme.fontDisplay
               font.weight: Theme.weightStrong
             }
@@ -350,7 +350,7 @@ Scope {
                   ? (count === 1 ? " match" : " matches")
                   : (count === 1 ? " theme" : " themes"))
               }
-              color: Theme.color4
+              color: Theme.foreground
               font.pixelSize: Theme.fontBody
             }
           }
@@ -361,8 +361,8 @@ Scope {
             Layout.preferredHeight: 40
             text: root.query
             placeholderText: "Search themes"
-            color: Theme.color6
-            placeholderTextColor: Theme.color4
+            color: Theme.foreground
+            placeholderTextColor: Theme.foreground
             leftPadding: 12
             rightPadding: 12
 
@@ -399,9 +399,9 @@ Scope {
             }
             background: Rectangle {
               radius: Theme.radiusMd
-              color: Theme.color1
+              color: Theme.surfaceHover
               border.width: Theme.borderWidth
-              border.color: input.activeFocus ? Theme.borderFocus : Theme.color3
+              border.color: input.activeFocus ? Theme.borderFocus : Theme.selectionBackground
             }
           }
 
@@ -416,7 +416,7 @@ Scope {
                 ? "No themes installed"
                 : "No matching themes"
             }
-            color: Theme.color4
+            color: Theme.foreground
             Layout.fillWidth: true
             Layout.preferredHeight: 48
             horizontalAlignment: Text.AlignHCenter
@@ -451,21 +451,21 @@ Scope {
               required property int index
               required property string modelData
               readonly property var palette: root.themePalettes[modelData] || ({})
-              readonly property var accentColors: palette.accents || []
+              readonly property var previewColors: palette.previewColors || []
               readonly property bool selected: index === root.selectedIndex
               readonly property bool hovered: mouse.containsMouse
               readonly property bool active: modelData === root.activeTheme
               width: themeList.width
               height: 42
               radius: Theme.radiusMd
-              color: palette.background || Theme.color0
+              color: palette.background || Theme.background
               border.width: selected || hovered || active
                 ? Theme.borderWidth : 0
               border.color: active
-                ? Theme.color10
+                ? Theme.accent
                 : (selected
                   ? (palette.foreground || Theme.borderFocus)
-                  : Theme.color3)
+                  : Theme.selectionBackground)
 
               Accessible.role: Accessible.Button
               Accessible.name: root.displayName(modelData)
@@ -482,7 +482,7 @@ Scope {
                 Text {
                   Layout.fillWidth: true
                   text: root.displayName(themeRow.modelData)
-                  color: themeRow.palette.foreground || Theme.color4
+                  color: themeRow.palette.foreground || Theme.foreground
                   font.pixelSize: 13
                   font.weight: themeRow.selected || themeRow.active
                     ? Theme.weightStrong : Theme.weightMedium
@@ -492,13 +492,13 @@ Scope {
                 Text {
                   visible: themeRow.active
                   text: "Current"
-                  color: themeRow.palette.foreground || Theme.color4
+                  color: themeRow.palette.foreground || Theme.foreground
                   font.pixelSize: Theme.fontCaption
                   font.weight: Theme.weightStrong
                 }
 
                 Repeater {
-                  model: themeRow.accentColors
+                  model: themeRow.previewColors
 
                   Rectangle {
                     required property string modelData

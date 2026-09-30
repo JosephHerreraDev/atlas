@@ -41,10 +41,10 @@ IconImage {
     colorization: 1
     colorizationColor: {
       if (!root.adapter || !root.adapter.enabled)
-        return Theme.color11
+        return Theme.error
       if (root.connectedDevices.length > 0)
-        return Theme.color8
-      return Theme.color2
+        return Theme.info
+      return Theme.border
     }
   }
 }

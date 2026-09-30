@@ -41,16 +41,16 @@ Item {
     radius: Theme.radiusSm
     color: {
       if (root.attention)
-        return Qt.rgba(Theme.color13.r, Theme.color13.g, Theme.color13.b,
+        return Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b,
           root.backgroundOpacity)
       return root.hovered || root.selected || root.activeFocus
-        ? Theme.color1
+        ? Theme.surfaceHover
         : "transparent"
     }
     border.width: root.attention || root.selected || root.activeFocus
       ? Theme.borderWidth
       : 0
-    border.color: root.attention ? Theme.color13 : Theme.color8
+    border.color: root.attention ? Theme.warning : Theme.accent
 
     Behavior on color {
       ColorAnimation { duration: Theme.motionFast }
@@ -76,7 +76,7 @@ Item {
     height: 5
     radius: 2.5
     visible: root.attention
-    color: Theme.color13
+    color: Theme.warning
     z: 2
 
     SequentialAnimation on opacity {

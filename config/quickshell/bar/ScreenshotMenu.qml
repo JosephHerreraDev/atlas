@@ -54,7 +54,7 @@ FocusScope {
     required property string tooltip
     required property int actionIndex
     property color iconColor: button.hovered || button.activeFocus
-      ? Theme.color8
+      ? Theme.accent
       : Theme.foreground
     property bool selected: false
 
@@ -65,8 +65,8 @@ FocusScope {
     accessibleName: tooltip
     enabled: !root.operationBusy
     buttonBorderColor: selected || hovered || activeFocus
-      ? Theme.color8
-      : Theme.color2
+      ? Theme.accent
+      : Theme.border
 
     Shortcut {
       sequence: "Left"

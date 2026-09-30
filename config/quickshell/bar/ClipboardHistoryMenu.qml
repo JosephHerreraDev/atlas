@@ -131,7 +131,7 @@ FocusScope {
       }
       Text {
         text: root.entries.length + " items"
-        color: Theme.color4
+        color: Theme.foreground
         font.pixelSize: Theme.fontCaption
       }
     }
@@ -143,7 +143,7 @@ FocusScope {
       placeholderText: "Search clipboard"
       selectByMouse: true
       color: Theme.foreground
-      placeholderTextColor: Theme.color4
+      placeholderTextColor: Theme.foreground
       leftPadding: 10
       rightPadding: 10
       onTextChanged: root.query = text
@@ -163,9 +163,9 @@ FocusScope {
       }
       background: Rectangle {
         radius: Theme.radiusMd
-        color: Theme.color1
+        color: Theme.surfaceHover
         border.width: Theme.borderWidth
-        border.color: input.activeFocus ? Theme.borderFocus : Theme.color3
+        border.color: input.activeFocus ? Theme.borderFocus : Theme.selectionBackground
       }
     }
 
@@ -174,7 +174,7 @@ FocusScope {
       Layout.fillWidth: true
       Layout.preferredHeight: 48
       text: root.entries.length === 0 ? "Clipboard history is empty" : "No matches"
-      color: Theme.color4
+      color: Theme.foreground
       horizontalAlignment: Text.AlignHCenter
       verticalAlignment: Text.AlignVCenter
     }
@@ -203,7 +203,7 @@ FocusScope {
         height: 54
         radius: Theme.radiusMd
         color: ListView.isCurrentItem || cardMouse.containsMouse
-          ? Theme.color1 : Theme.color0
+          ? Theme.surfaceHover : Theme.surface
         border.width: ListView.isCurrentItem ? Theme.borderWidth : 0
         border.color: Theme.borderFocus
 
@@ -216,7 +216,7 @@ FocusScope {
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignVCenter
             text: card.modelData.preview
-            color: ListView.isCurrentItem ? Theme.foreground : Theme.color4
+            color: ListView.isCurrentItem ? Theme.foreground : Theme.foreground
             font.pixelSize: Theme.fontBody
             maximumLineCount: 2
             wrapMode: Text.Wrap
@@ -226,7 +226,7 @@ FocusScope {
           Text {
             z: 2
             text: "×"
-            color: Theme.color11
+            color: Theme.error
             font.pixelSize: 20
             MouseArea {
               anchors.fill: parent
@@ -253,7 +253,7 @@ FocusScope {
     Text {
       Layout.fillWidth: true
       text: "↑/↓ navigate   Enter copy   Delete remove   Esc close"
-      color: Theme.color4
+      color: Theme.foreground
       font.pixelSize: Theme.fontCaption
       horizontalAlignment: Text.AlignHCenter
     }

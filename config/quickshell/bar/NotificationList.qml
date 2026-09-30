@@ -12,9 +12,9 @@ Rectangle {
   width: parent?.width ?? implicitWidth
   implicitHeight: contentColumn.implicitHeight + Theme.spaceMd * 2
   radius: Theme.radiusSm
-  color: Theme.background
+  color: Theme.surface
   border.width: Theme.borderWidth
-  border.color: Theme.color2
+  border.color: Theme.border
 
   Column {
     id: contentColumn
@@ -43,13 +43,13 @@ Rectangle {
         Layout.preferredHeight: Theme.controlHeight
         enabled: root.hasNotifications
         accessibleName: "Clear all notifications"
-        buttonBorderColor: hovered ? Theme.color11 : Theme.color2
+        buttonBorderColor: hovered ? Theme.error : Theme.border
         onClicked: root.notifications.history.clear()
 
         Text {
           anchors.centerIn: parent
           text: "Clear all"
-          color: parent.enabled ? Theme.color11 : Theme.color2
+          color: parent.enabled ? Theme.error : Theme.border
           font.pixelSize: Theme.fontCaption
         }
       }
@@ -78,9 +78,9 @@ Rectangle {
         width: notificationList.width
         height: cardColumn.implicitHeight + Theme.spaceLg * 2
         radius: Theme.radiusSm
-        color: Theme.background
+        color: Theme.surface
         border.width: Theme.borderWidth
-        border.color: Theme.color2
+        border.color: Theme.border
 
         ColumnLayout {
           id: cardColumn
@@ -106,7 +106,7 @@ Rectangle {
             Text {
               text: historyCard.time
               textFormat: Text.PlainText
-              color: Theme.color5
+              color: Theme.foregroundMuted
               font.pixelSize: Theme.fontCaption
             }
 
@@ -115,13 +115,13 @@ Rectangle {
               Layout.preferredHeight: 24
               horizontalPadding: 0
               accessibleName: "Dismiss " + historyCard.summary
-              buttonBorderColor: hovered ? Theme.color11 : Theme.color2
+              buttonBorderColor: hovered ? Theme.error : Theme.border
               onClicked: root.notifications.history.remove(historyCard.index)
 
               Text {
                 anchors.centerIn: parent
                 text: "×"
-                color: parent.hovered ? Theme.color11 : Theme.foreground
+                color: parent.hovered ? Theme.error : Theme.foreground
                 font.pixelSize: Theme.fontBody
               }
             }
@@ -132,7 +132,7 @@ Rectangle {
             visible: historyCard.appName !== ""
             text: historyCard.appName
             textFormat: Text.PlainText
-            color: Theme.color5
+            color: Theme.foregroundMuted
             font.pixelSize: Theme.fontCaption
             elide: Text.ElideRight
           }
@@ -154,7 +154,7 @@ Rectangle {
       width: parent.width
       visible: !root.hasNotifications
       text: "You're all caught up"
-      color: Theme.color5
+      color: Theme.foregroundMuted
       font.pixelSize: Theme.fontCaption
       horizontalAlignment: Text.AlignHCenter
     }

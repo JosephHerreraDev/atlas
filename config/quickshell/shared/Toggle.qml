@@ -11,7 +11,7 @@ Rectangle {
   implicitWidth: 34
   implicitHeight: 18
   radius: height / 2
-  color: checked ? Theme.color8 : Theme.color2
+  color: checked ? Theme.accent : Theme.border
   opacity: enabled ? 1 : 0.5
   border.width: Theme.borderWidth
   border.color: activeFocus || hoverHandler.hovered
@@ -34,7 +34,7 @@ Rectangle {
     radius: Theme.radiusMd
     anchors.verticalCenter: parent.verticalCenter
     x: root.checked ? root.width - width - 3 : 3
-    color: root.checked ? Theme.color0 : Theme.foreground
+    color: root.checked ? Theme.background : Theme.foreground
 
     Behavior on x {
       NumberAnimation {

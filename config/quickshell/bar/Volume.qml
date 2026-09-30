@@ -40,8 +40,8 @@ Item {
     mediumSource: Qt.resolvedUrl("../assets/volume-med.svg")
     highSource: Qt.resolvedUrl("../assets/volume-max.svg")
     iconColor: !root.available
-      ? Theme.color2
-      : (root.muted ? Theme.color11 : Theme.foreground)
+      ? Theme.border
+      : (root.muted ? Theme.error : Theme.foreground)
     accessibleName: root.accessibleDescription
   }
 }

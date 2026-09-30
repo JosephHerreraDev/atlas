@@ -76,7 +76,7 @@ FocusScope {
       Text {
         width: parent.width
         text: Qt.formatDate(root.now, "yyyy")
-        color: Theme.color5
+        color: Theme.foregroundMuted
         font.pixelSize: Theme.fontBody
       }
 
@@ -149,7 +149,7 @@ FocusScope {
           width: parent.width / 7
           height: 20
           text: modelData
-          color: Theme.color5
+          color: Theme.foregroundMuted
           font.pixelSize: Theme.fontCaption - 1
           font.weight: Theme.weightStrong
           horizontalAlignment: Text.AlignHCenter
@@ -174,14 +174,14 @@ FocusScope {
           width: (parent.width - parent.spacing * 6) / 7
           height: 30
           radius: Theme.radiusSm
-          color: root.isToday(day) && inMonth ? Theme.color8 : "transparent"
+          color: root.isToday(day) && inMonth ? Theme.accent : "transparent"
           border.width: root.isToday(day) && inMonth ? 0 : Theme.borderWidth
           border.color: inMonth ? Theme.border : "transparent"
 
           Text {
             anchors.centerIn: parent
             text: parent.inMonth ? parent.day : ""
-            color: root.isToday(parent.day) ? Theme.color0 : Theme.foreground
+            color: root.isToday(parent.day) ? Theme.background : Theme.foreground
             font.pixelSize: Theme.fontBody
             font.weight: root.isToday(parent.day)
               ? Theme.weightStrong
@@ -200,7 +200,7 @@ FocusScope {
       Text {
         anchors.centerIn: parent
         text: "Today"
-        color: Theme.color8
+        color: Theme.accent
         font.pixelSize: Theme.fontCaption
       }
     }

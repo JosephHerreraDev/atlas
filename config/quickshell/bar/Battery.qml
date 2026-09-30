@@ -37,12 +37,12 @@ Item {
       colorization: 1
       colorizationColor: {
         if (root.charging)
-          return Theme.color8
+          return Theme.info
         if (root.percentage <= 0.2)
-          return Theme.color11
+          return Theme.error
         if (root.percentage <= 0.6)
-          return Theme.color13
-        return Theme.color14
+          return Theme.warning
+        return Theme.success
       }
     }
   }

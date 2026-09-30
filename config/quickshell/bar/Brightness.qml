@@ -43,7 +43,7 @@ Item {
     lowSource: Qt.resolvedUrl("../assets/brightness-min.svg")
     mediumSource: Qt.resolvedUrl("../assets/brightness-med.svg")
     highSource: Qt.resolvedUrl("../assets/brightness-max.svg")
-    iconColor: root.available ? Theme.foreground : Theme.color2
+    iconColor: root.available ? Theme.foreground : Theme.border
     accessibleName: root.accessibleDescription
   }
 }

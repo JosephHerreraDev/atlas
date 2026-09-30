@@ -380,9 +380,9 @@ Scope {
 
         radius: Theme.radiusLg
         color: Qt.rgba(
-          Theme.color0.r,
-          Theme.color0.g,
-          Theme.color0.b,
+          Theme.surface.r,
+          Theme.surface.g,
+          Theme.surface.b,
           Theme.popupOpacity)
         border.width: Theme.borderWidth
         border.color: Theme.border
@@ -425,7 +425,7 @@ Scope {
             Text {
               Layout.fillWidth: true
               text: "Applications"
-              color: Theme.color6
+              color: Theme.foreground
               font.pixelSize: Theme.fontDisplay
               font.weight: Theme.weightStrong
               elide: Text.ElideRight
@@ -444,7 +444,7 @@ Scope {
                   : " available"
                 return count + suffix
               }
-              color: Theme.color4
+              color: Theme.foreground
               font.pixelSize: Theme.fontBody
             }
           }
@@ -457,8 +457,8 @@ Scope {
             text: root.query
             placeholderText: "Search applications"
             selectByMouse: true
-            color: Theme.color6
-            placeholderTextColor: Theme.color4
+            color: Theme.foreground
+            placeholderTextColor: Theme.foreground
             font.pixelSize: 15
             leftPadding: 12
             rightPadding: 12
@@ -470,9 +470,9 @@ Scope {
 
             background: Rectangle {
               radius: Theme.radiusMd
-              color: Theme.color1
+              color: Theme.surfaceHover
               border.width: Theme.borderWidth
-              border.color: input.activeFocus ? Theme.borderFocus : Theme.color3
+              border.color: input.activeFocus ? Theme.borderFocus : Theme.selectionBackground
             }
 
             onTextChanged: root.query = text
@@ -518,7 +518,7 @@ Scope {
             Layout.fillWidth: true
             Layout.preferredHeight: 48
             text: !root.appsLoaded ? "Loading apps..." : root.apps.length === 0 ? "No apps found" : "No matches"
-            color: Theme.color4
+            color: Theme.foreground
             font.pixelSize: 13
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
@@ -564,11 +564,11 @@ Scope {
               height: 68
               radius: Theme.radiusMd
               color: ListView.isCurrentItem || cardMouse.containsMouse
-                ? Theme.color1
-                : Theme.color0
+                ? Theme.surfaceHover
+                : Theme.surface
               border.width: ListView.isCurrentItem || cardMouse.containsMouse
                 ? Theme.borderWidth : 0
-              border.color: ListView.isCurrentItem ? Theme.borderFocus : Theme.color3
+              border.color: ListView.isCurrentItem ? Theme.borderFocus : Theme.selectionBackground
 
               Accessible.role: Accessible.Button
               Accessible.name: modelData.name
@@ -607,14 +607,14 @@ Scope {
                   Layout.alignment: Qt.AlignVCenter
                   visible: !appIcon.visible
                   radius: Theme.radiusMd
-                  color: Theme.color2
+                  color: Theme.border
                   border.width: Theme.borderWidth
-                  border.color: Theme.color3
+                  border.color: Theme.selectionBackground
 
                   Text {
                     anchors.centerIn: parent
                     text: appCard.modelData.name.length > 0 ? appCard.modelData.name[0].toUpperCase() : "?"
-                    color: Theme.color6
+                    color: Theme.foreground
                     font.pixelSize: Theme.fontBody + 1
                     font.weight: Theme.weightStrong
                   }
@@ -628,7 +628,7 @@ Scope {
                   Text {
                     Layout.fillWidth: true
                     text: appCard.modelData.name
-                    color: ListView.isCurrentItem ? Theme.color6 : Theme.color4
+                    color: ListView.isCurrentItem ? Theme.foreground : Theme.foreground
                     font.pixelSize: 15
                     font.weight: ListView.isCurrentItem
                       ? Theme.weightStrong : Theme.weightMedium
@@ -639,7 +639,7 @@ Scope {
                     Layout.fillWidth: true
                     visible: appCard.modelData.comment.length > 0 || appCard.modelData.genericName.length > 0
                     text: appCard.modelData.comment.length > 0 ? appCard.modelData.comment : appCard.modelData.genericName
-                    color: Theme.color4
+                    color: Theme.foreground
                     font.pixelSize: Theme.fontCaption
                     elide: Text.ElideRight
                   }

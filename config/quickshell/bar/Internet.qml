@@ -76,12 +76,12 @@ Item {
       colorization: 1
       colorizationColor: {
         if (!root.connected)
-          return Theme.color11
+          return Theme.error
         if (root.limited)
-          return Theme.color13
+          return Theme.warning
         if (root.wired)
-          return Theme.color8
-        return Theme.color14
+          return Theme.info
+        return Theme.success
       }
     }
   }

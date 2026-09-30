@@ -58,16 +58,16 @@ Pill {
         Layout.preferredHeight: 20
 
         buttonColor: workspace.focused
-        ? Theme.color2
+        ? Theme.border
         : workspace.active
-        ? Theme.color1
-        : Theme.color0
+        ? Theme.surfaceHover
+        : Theme.surface
 
         buttonBorderColor: workspace.focused
-        ? Theme.color8
+        ? Theme.accent
         : workspace.active
-        ? Theme.color10
-        : Theme.color0
+        ? Theme.accent
+        : Theme.surface
 
         onClicked: workspaceButton.workspace.activate()
 
@@ -86,8 +86,8 @@ Pill {
             : Font.Medium
 
             color: workspaceButton.workspace.focused
-            ? Theme.color6
-            : Theme.color4
+            ? Theme.foreground
+            : Theme.foreground
           }
         }
       }

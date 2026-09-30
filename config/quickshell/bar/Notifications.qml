@@ -71,10 +71,10 @@ Scope {
           Layout.fillWidth: true
           Layout.preferredHeight: layout.implicitHeight + 20
           radius: Theme.radiusSm
-          color: Theme.background
+          color: Theme.surface
           border.width: Theme.borderWidth
           border.color: modelData.urgency === NotificationUrgency.Critical 
-            ? Theme.color11 : Theme.foreground
+            ? Theme.error : Theme.foreground
 
           RowLayout {
             id: layout
