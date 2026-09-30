@@ -23,6 +23,9 @@ Scope {
   Menu.PowerMenu {
   }
 
+  Menu.Settings {
+  }
+
   Menu.WallpaperSelector {
     ipcTarget: "wallpaper"
     mode: "general"

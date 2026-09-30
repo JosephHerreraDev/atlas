@@ -30,6 +30,8 @@ Pill {
 
       Layout.preferredWidth: 24
       Layout.preferredHeight: 20
+      accessibleName: "Open Atlas settings"
+      onClicked: Quickshell.execDetached(["qs", "ipc", "call", "settings", "open"])
 
       IconImage {
         anchors.centerIn: parent
