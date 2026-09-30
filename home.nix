@@ -35,6 +35,8 @@ in
   home.sessionVariables = {
     ATLAS_PATH = atlasPath;
     ATLAS_CONFIG = "${config.home.homeDirectory}/.config/atlas/config.nix";
+    EDITOR = "nvim";
+    VISUAL = "nvim";
   };
 
   home.sessionPath = [
