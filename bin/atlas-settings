@@ -1,0 +1,295 @@
+#!/usr/bin/env python3
+"""Read and safely patch the user-owned Atlas and Hyprland settings."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any
+
+
+MODULES = ("bluetooth", "development", "media", "productivity", "laptop", "nvidia")
+
+
+class SettingsError(RuntimeError):
+    pass
+
+
+def home_dir() -> Path:
+    return Path(os.environ.get("ATLAS_HOME", str(Path.home())))
+
+
+def config_home() -> Path:
+    return Path(os.environ.get("XDG_CONFIG_HOME", str(home_dir() / ".config")))
+
+
+def atlas_path() -> Path:
+    return Path(os.environ.get("ATLAS_PATH", str(home_dir() / ".local/share/atlas")))
+
+
+def paths() -> dict[str, Path]:
+    base = config_home()
+    return {
+        "system": Path(os.environ.get("ATLAS_CONFIG", str(base / "atlas/config.nix"))),
+        "displays": base / "hypr/hyprland/monitors.lua",
+    }
+
+
+def read_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise SettingsError(f"Cannot read {path}: {error.strerror}") from error
+
+
+def decode_quoted(value: str) -> str:
+    try:
+        return json.loads(f'"{value}"')
+    except json.JSONDecodeError as error:
+        raise SettingsError(f"Unsupported quoted string: {error}") from error
+
+
+def quoted(value: Any) -> str:
+    if not isinstance(value, str) or "\n" in value or "\r" in value:
+        raise SettingsError("Expected a single-line string")
+    return json.dumps(value, ensure_ascii=False)
+
+
+def scalar(pattern: str, text: str, label: str, cast=lambda value: value):
+    matches = list(re.finditer(pattern, text, re.MULTILINE))
+    if len(matches) != 1:
+        raise SettingsError(f"Expected one canonical {label}; found {len(matches)}")
+    return cast(matches[0].group(1))
+
+
+def read_system(text: str) -> dict[str, Any]:
+    import_matches = list(re.finditer(r"\bimports\s*=\s*\[(.*?)\]\s*;", text, re.DOTALL))
+    if len(import_matches) != 1:
+        raise SettingsError(f"Expected one canonical imports list; found {len(import_matches)}")
+    imports = import_matches[0].group(1)
+    enabled = []
+    for line in imports.splitlines():
+        code = line.split("#", 1)[0]
+        referenced = re.findall(r"atlasModules\.([A-Za-z0-9_-]+)", code)
+        known = [name for name in referenced if name in MODULES]
+        if known and not re.fullmatch(r"\s*atlasModules\.(?:" + "|".join(MODULES) + r")\s*", code):
+            raise SettingsError("Atlas module imports must each use their own canonical line")
+        enabled.extend(known)
+    if len(enabled) != len(set(enabled)):
+        raise SettingsError("Atlas module imports contain duplicates")
+    enabled = [name for name in MODULES if name in enabled]
+    hostname = scalar(r'^\s*networking\.hostName\s*=\s*"((?:\\.|[^\"])*)"\s*;', text, "networking.hostName", decode_quoted)
+    timezone = scalar(r'^\s*time\.timeZone\s*=\s*"((?:\\.|[^\"])*)"\s*;', text, "time.timeZone", decode_quoted)
+    return {"modules": enabled, "hostname": hostname, "timezone": timezone}
+
+
+def patch_system(text: str, data: dict[str, Any]) -> str:
+    modules = data.get("modules")
+    if not isinstance(modules, list) or any(item not in MODULES for item in modules):
+        raise SettingsError("modules must contain only supported Atlas module names")
+    hostname = data.get("hostname")
+    timezone = data.get("timezone")
+    if not isinstance(hostname, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]{0,62}", hostname):
+        raise SettingsError("Hostname must contain 1–63 letters, digits, dots, or hyphens")
+    if not isinstance(timezone, str) or not re.fullmatch(r"[A-Za-z0-9_+.-]+(?:/[A-Za-z0-9_+.-]+)+", timezone):
+        raise SettingsError("Timezone must be an IANA name such as America/Mexico_City")
+
+    match = re.search(r"\bimports\s*=\s*\[(.*?)\](\s*;)", text, re.DOTALL)
+    if not match:
+        raise SettingsError("Cannot safely patch the Nix imports list")
+    body = match.group(1)
+    kept = [line for line in body.splitlines() if not re.fullmatch(r"\s*atlasModules\.(?:" + "|".join(MODULES) + r")\s*", line)]
+    while kept and not kept[-1].strip():
+        kept.pop()
+    indent = "    "
+    module_lines = [f"{indent}atlasModules.{name}" for name in MODULES if name in modules]
+    new_body = "\n" + "\n".join(kept + module_lines) + "\n  "
+    text = text[:match.start(1)] + new_body + text[match.end(1):]
+
+    replacements = {
+        r'(^\s*networking\.hostName\s*=\s*)"(?:\\.|[^\"])*"': quoted(hostname),
+        r'(^\s*time\.timeZone\s*=\s*)"(?:\\.|[^\"])*"': quoted(timezone),
+    }
+    for pattern, value in replacements.items():
+        text, count = re.subn(pattern, lambda found, v=value: found.group(1) + v, text, flags=re.MULTILINE)
+        if count != 1:
+            raise SettingsError("Cannot safely patch hostname/timezone; expected canonical assignments")
+    return text
+
+
+def monitor_blocks(text: str) -> list[re.Match[str]]:
+    return list(re.finditer(r"hl\.monitor\(\{(.*?)\}\)\s*", text, re.DOTALL))
+
+
+def read_displays(text: str) -> dict[str, Any]:
+    blocks = monitor_blocks(text)
+    if not blocks or (text[:blocks[0].start()] + text[blocks[-1].end():]).strip():
+        raise SettingsError("monitors.lua contains unsupported code outside canonical monitor blocks")
+    result = []
+    for block in blocks:
+        body = block.group(1)
+        item = {}
+        for key in ("output", "mode", "position", "scale"):
+            item[key] = scalar(rf"\b{key}\s*=\s*\"((?:\\.|[^\"])*)\"\s*,?", body, f"monitor {key}", decode_quoted)
+        result.append(item)
+    return {"monitors": result}
+
+
+def patch_displays(text: str, data: dict[str, Any]) -> str:
+    read_displays(text)
+    monitors = data.get("monitors")
+    if not isinstance(monitors, list) or not monitors:
+        raise SettingsError("At least one monitor rule is required")
+    rendered = []
+    seen = set()
+    for monitor in monitors:
+        if not isinstance(monitor, dict):
+            raise SettingsError("Each monitor must be an object")
+        values = {key: monitor.get(key) for key in ("output", "mode", "position", "scale")}
+        if any(not isinstance(value, str) or "\n" in value for value in values.values()):
+            raise SettingsError("Monitor values must be single-line strings")
+        if values["output"] in seen and values["output"] != "":
+            raise SettingsError(f"Duplicate monitor output: {values['output']}")
+        seen.add(values["output"])
+        rendered.append(
+            "hl.monitor({\n"
+            f"  output = {quoted(values['output'])},\n"
+            f"  mode = {quoted(values['mode'])},\n"
+            f"  position = {quoted(values['position'])},\n"
+            f"  scale = {quoted(values['scale'])},\n"
+            "})"
+        )
+    return "\n\n".join(rendered) + "\n"
+
+
+READERS = {"system": read_system, "displays": read_displays}
+PATCHERS = {"system": patch_system, "displays": patch_displays}
+
+
+def detected_monitors() -> list[dict[str, Any]]:
+    try:
+        result = subprocess.run(["hyprctl", "monitors", "all", "-j"], check=True, text=True, capture_output=True, timeout=3)
+        monitors = json.loads(result.stdout)
+        return [{"name": item.get("name", ""), "description": item.get("description", ""), "modes": item.get("availableModes", [])} for item in monitors]
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return []
+
+
+def read_all() -> dict[str, Any]:
+    result: dict[str, Any] = {"ok": True, "sections": {}, "errors": {}, "detectedMonitors": detected_monitors()}
+    for section, path in paths().items():
+        try:
+            result["sections"][section] = READERS[section](read_text(path))
+        except SettingsError as error:
+            result["errors"][section] = {"path": str(path), "message": str(error)}
+    marker = Path(os.environ.get("XDG_STATE_HOME", str(home_dir() / ".local/state"))) / "atlas/rebuild-required"
+    result["rebuildRequired"] = marker.exists()
+    return result
+
+
+def rebuild_required() -> bool:
+    marker = Path(os.environ.get("XDG_STATE_HOME", str(home_dir() / ".local/state"))) / "atlas/rebuild-required"
+    return marker.exists()
+
+
+def atomic_write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    backup = path.with_name(path.name + ".atlas-settings.backup")
+    shutil.copy2(path, backup)
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        shutil.copymode(path, temporary)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def nix_validate(candidate: str) -> None:
+    if os.environ.get("ATLAS_SETTINGS_SKIP_NIX_CHECK") == "1":
+        return
+    config_path = paths()["system"]
+    descriptor, temporary_name = tempfile.mkstemp(prefix="atlas-settings-", suffix=".nix", dir=config_path.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(candidate)
+        environment = os.environ.copy()
+        environment.update({"ATLAS_CONFIG": str(temporary), "ATLAS_USER": os.environ.get("USER", home_dir().name), "ATLAS_HOME": str(home_dir())})
+        command = ["nix", "eval", "--impure", "--raw", f"path:{atlas_path()}#nixosConfigurations.atlas.config.system.build.toplevel.drvPath"]
+        result = subprocess.run(command, text=True, capture_output=True, env=environment)
+        if result.returncode:
+            message = result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "Nix evaluation failed"
+            raise SettingsError(message)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def save(section: str, data: dict[str, Any]) -> dict[str, Any]:
+    if section not in PATCHERS:
+        raise SettingsError(f"Unknown settings section: {section}")
+    path = paths()[section]
+    original = read_text(path)
+    READERS[section](original)
+    candidate = PATCHERS[section](original, data)
+    if candidate == original:
+        return {"ok": True, "changed": False, "section": section}
+    if section == "system":
+        nix_validate(candidate)
+    atomic_write(path, candidate)
+    if section == "system":
+        marker = Path(os.environ.get("XDG_STATE_HOME", str(home_dir() / ".local/state"))) / "atlas/rebuild-required"
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text("Settings changed; run atlas rebuild.\n", encoding="utf-8")
+    elif os.environ.get("ATLAS_SETTINGS_SKIP_HYPR_RELOAD") != "1" and shutil.which("hyprctl"):
+        reload_result = subprocess.run(["hyprctl", "reload"], text=True, capture_output=True)
+        errors_result = subprocess.run(["hyprctl", "configerrors"], text=True, capture_output=True)
+        errors = errors_result.stdout.strip()
+        if reload_result.returncode or errors_result.returncode or errors:
+            backup = path.with_name(path.name + ".atlas-settings.backup")
+            shutil.copy2(backup, path)
+            subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            raise SettingsError(errors or reload_result.stderr.strip() or "Hyprland rejected the configuration; the backup was restored")
+    return {"ok": True, "changed": True, "section": section, "rebuildRequired": section == "system"}
+
+
+def payload() -> dict[str, Any]:
+    try:
+        value = json.loads(sys.stdin.readline())
+    except json.JSONDecodeError as error:
+        raise SettingsError(f"Invalid JSON input: {error}") from error
+    if not isinstance(value, dict):
+        raise SettingsError("Settings input must be a JSON object")
+    return value
+
+
+def main() -> int:
+    try:
+        command = sys.argv[1] if len(sys.argv) > 1 else ""
+        if command == "read" and len(sys.argv) == 2:
+            result = read_all()
+        elif command == "status" and len(sys.argv) == 2:
+            result = {"ok": True, "rebuildRequired": rebuild_required()}
+        elif command == "save" and len(sys.argv) == 3:
+            result = save(sys.argv[2], payload())
+        else:
+            raise SettingsError("Usage: atlas-settings read | atlas-settings status | atlas-settings save <section>")
+        print(json.dumps(result, separators=(",", ":")))
+        return 0
+    except SettingsError as error:
+        print(json.dumps({"ok": False, "error": str(error)}, separators=(",", ":")))
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
