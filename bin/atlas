@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
+ATLAS_CONFIG="${ATLAS_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/atlas/config.nix}"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  atlas config check
+  atlas rebuild
+  atlas rollback
+  atlas doctor
+  atlas update
+EOF
+}
+
+die() { printf 'atlas: %s\n' "$*" >&2; exit 1; }
+
+ensure_config() {
+  if [[ ! -f "$ATLAS_CONFIG" ]]; then
+    mkdir -p "$(dirname "$ATLAS_CONFIG")"
+    printf '{ atlasModules, ... }:\n{\n  imports = [ ];\n}\n' > "$ATLAS_CONFIG"
+  fi
+}
+
+rebuild() {
+  sudo env "ATLAS_USER=$(id -un)" "ATLAS_HOME=$HOME" "ATLAS_CONFIG=$ATLAS_CONFIG" \
+    nixos-rebuild switch --impure --flake "path:$ATLAS_PATH#atlas"
+}
+
+check_config() {
+  ensure_config
+  ATLAS_USER="$(id -un)" ATLAS_HOME="$HOME" ATLAS_CONFIG="$ATLAS_CONFIG" \
+    nix eval --impure --raw "path:$ATLAS_PATH#nixosConfigurations.atlas.config.system.build.toplevel.drvPath" >/dev/null
+  echo "Atlas configuration is valid."
+}
+
+doctor() {
+  local failures=0 command_name
+  printf 'Atlas path: %s\nConfig: %s\n' "$ATLAS_PATH" "$ATLAS_CONFIG"
+  for command_name in nix nixos-rebuild hyprctl qs theme-set wallpaper-set; do
+    if ! command -v "$command_name" >/dev/null; then
+      printf 'MISSING: %s\n' "$command_name"
+      failures=$((failures + 1))
+    fi
+  done
+  if ! check_config; then failures=$((failures + 1)); fi
+  if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
+    hyprctl monitors >/dev/null || { echo "FAIL: Hyprland is not responding."; failures=$((failures + 1)); }
+  fi
+  while IFS= read -r theme; do
+    if ! theme-colors "$theme" >/dev/null || ! theme_has_wallpaper "$(theme_dir "$theme")"; then
+      printf 'FAIL: invalid theme %s\n' "$theme"
+      failures=$((failures + 1))
+    fi
+  done < <(theme-list)
+  ((failures == 0)) || die "$failures check(s) failed"
+  echo "Atlas doctor found no problems."
+}
+
+theme_dir() {
+  local name="$1"
+  printf '%s\n' "$ATLAS_PATH/themes/$name"
+}
+
+theme_has_wallpaper() {
+  local directory="$1"
+  [[ -d "$directory/wallpapers" ]] &&
+    find "$directory/wallpapers" -maxdepth 1 -type f \
+      \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) \
+      -print -quit | grep -q .
+}
+
+case "${1:-}" in
+  config)
+    case "${2:-}" in
+      check) check_config ;;
+      *) usage; exit 2 ;;
+    esac
+    ;;
+  rebuild) rebuild ;;
+  rollback) sudo nixos-rebuild switch --rollback ;;
+  doctor) doctor ;;
+  update)
+    if [[ -d "$ATLAS_PATH/.git" ]]; then
+      git -C "$ATLAS_PATH" pull --ff-only
+    else
+      for command_name in curl tar rsync; do
+        command -v "$command_name" >/dev/null || die "required command not found: $command_name"
+      done
+      update_dir="$(mktemp -d)"
+      backup_dir="${XDG_STATE_HOME:-$HOME/.local/state}/atlas/backups/$(date +%Y%m%d-%H%M%S)"
+      trap 'rm -rf -- "$update_dir"' EXIT
+      curl -fsSL "https://github.com/JosephHerreraDev/atlas/archive/refs/heads/main.tar.gz" \
+        | tar -xz --strip-components=1 -C "$update_dir"
+      mkdir -p "$backup_dir"
+      rsync -a --delete --backup --backup-dir="$backup_dir" "$update_dir/" "$ATLAS_PATH/"
+      echo "Replaced files were backed up under $backup_dir."
+    fi
+    echo 'Update downloaded. Review the changes, then run `atlas rebuild`.'
+    ;;
+  *) usage; exit 2 ;;
+esac
