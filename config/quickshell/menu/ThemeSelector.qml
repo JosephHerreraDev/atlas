@@ -229,7 +229,8 @@ Scope {
   FileView {
     id: activeThemeFile
 
-    path: Quickshell.env("HOME") + "/.config/style/current/theme"
+    path: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config")
+      + "/atlas/style/current/theme"
     preload: true
     watchChanges: true
     printErrors: false
