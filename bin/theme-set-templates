@@ -7,7 +7,7 @@ ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
 TEMPLATES_DIR="$ATLAS_PATH/themes/templates"
 USER_TEMPLATES_DIR="$HOME/.config/atlas/templates"
 
-STYLE_DIR="$HOME/.config/style"
+STYLE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/atlas/style"
 NEXT_THEME_DIR="$STYLE_DIR/next-theme"
 COLORS_FILE="$NEXT_THEME_DIR/colors.toml"
 
