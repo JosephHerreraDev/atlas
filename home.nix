@@ -8,7 +8,6 @@ let
     config.lib.file.mkOutOfStoreSymlink path;
 
   configs = {
-    btop = "btop";
     fastfetch = "fastfetch";
     kitty = "kitty";
     nvim = "nvim";
@@ -63,6 +62,10 @@ in
       })
       configs)
     // {
+      "btop/btop.conf".source =
+        createSymlink "${dotfiles}/btop/btop.conf";
+      "btop/themes/atlas.theme".source =
+        createSymlink "${config.home.homeDirectory}/.config/atlas/style/current/btop.theme";
       "starship.toml".source =
         createSymlink "${dotfiles}/starship/starship.toml";
 
@@ -89,8 +92,6 @@ in
       if [ "$skip_install" = false ]; then
         $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p "$target_dir"
 
-        # Seed every missing file once. Existing user configuration is never
-        # overwritten by later Atlas rebuilds.
         $DRY_RUN_CMD ${pkgs.rsync}/bin/rsync \
           -a \
           --ignore-existing \
