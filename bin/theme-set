@@ -6,7 +6,7 @@ ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
 
 THEMES_DIR="$ATLAS_PATH/themes"
 
-STYLE_DIR="$HOME/.config/style"
+STYLE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/atlas/style"
 CURRENT_THEME_DIR="$STYLE_DIR/current"
 NEXT_THEME_DIR="$STYLE_DIR/next-theme"
 
@@ -27,10 +27,23 @@ if [[ ! -f "$THEME_FILE" ]]; then
   exit 1
 fi
 
-if [[ ! -d "$THEME_WALLPAPERS_DIR" ]]; then
-  echo "Wallpaper directory does not exist: $THEME_WALLPAPERS_DIR"
+mapfile -t wallpapers < <(
+  [[ -d "$THEME_WALLPAPERS_DIR" ]] || exit 0
+  find "$THEME_WALLPAPERS_DIR" \
+    -maxdepth 1 \
+    -type f \
+    \( \
+    -iname '*.jpg' -o \
+    -iname '*.jpeg' -o \
+    -iname '*.png' -o \
+    -iname '*.webp' \
+    \)
+)
+
+((${#wallpapers[@]} > 0)) || {
+  echo "Theme has no wallpapers: $THEME_WALLPAPERS_DIR" >&2
   exit 1
-fi
+}
 
 #
 # Prepare next theme
@@ -51,26 +64,7 @@ theme-set-templates
 # Select wallpaper
 #
 
-mapfile -t wallpapers < <(
-  find "$THEME_WALLPAPERS_DIR" \
-    -maxdepth 1 \
-    -type f \
-    \( \
-    -iname '*.jpg' -o \
-    -iname '*.jpeg' -o \
-    -iname '*.png' -o \
-    -iname '*.webp' \
-    \)
-)
-
-if ((${#wallpapers[@]} == 0)); then
-  echo "No wallpapers found for theme: $theme"
-  exit 1
-fi
-
 wallpaper="${wallpapers[RANDOM % ${#wallpapers[@]}]}"
-
-# Copy selected wallpaper to a stable path
 cp "$wallpaper" "$NEXT_THEME_DIR/background"
 
 #
