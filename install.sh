@@ -6,6 +6,8 @@ readonly REPOSITORY_ARCHIVE="https://github.com/JosephHerreraDev/atlas/archive/r
 readonly INSTALL_DIR="${HOME}/.local/share/atlas"
 readonly ATLAS_USER="$(id -un)"
 readonly ATLAS_HOME="${HOME}"
+readonly ATLAS_CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/atlas"
+readonly ATLAS_CONFIG="${ATLAS_CONFIG_DIR}/config.nix"
 
 die() {
   printf 'atlas installer: %s\n' "$*" >&2
@@ -16,7 +18,7 @@ run_with_spinner() {
   local message="$1"
   shift
 
-  local -a frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+  local -a frames=('|' '/' '-' '\')
   local frame_index=0
   local command_pid
   local interrupted_status=0
@@ -30,7 +32,7 @@ run_with_spinner() {
   trap 'interrupted_status=130; kill "${command_pid}" 2>/dev/null || true' INT
   trap 'interrupted_status=143; kill "${command_pid}" 2>/dev/null || true' TERM
 
-  if [[ -t 1 ]]; then
+  if [[ -t 1 && "${TERM:-dumb}" != "dumb" ]]; then
     while kill -0 "${command_pid}" 2>/dev/null; do
       printf '\r\033[2K%s %s' "${frames[frame_index]}" "${message}"
       frame_index=$(((frame_index + 1) % ${#frames[@]}))
@@ -51,11 +53,11 @@ run_with_spinner() {
   fi
 
   if ((status == 0)); then
-    [[ -t 1 ]] && printf '\r\033[2K'
-    printf '✓ %s\n' "${message}"
+    [[ -t 1 && "${TERM:-dumb}" != "dumb" ]] && printf '\r\033[2K'
+    printf '[OK] %s\n' "${message}"
   else
-    [[ -t 2 ]] && printf '\r\033[2K' >&2
-    printf '✗ %s\n' "${message}" >&2
+    [[ -t 2 && "${TERM:-dumb}" != "dumb" ]] && printf '\r\033[2K' >&2
+    printf '[ERROR] %s\n' "${message}" >&2
     cat "${output_file}" >&2
   fi
 
@@ -69,8 +71,6 @@ fi
 
 [[ -e /etc/NIXOS ]] || die "Atlas can only be installed on NixOS"
 
-# A script read from standard input has no path, so it cannot access the rest
-# of the repository. Download a temporary checkout and restart from there.
 if [[ -z "${BASH_SOURCE[0]:-}" ]]; then
   for command_name in curl mktemp tar; do
     command -v "${command_name}" >/dev/null || die "required command not found: ${command_name}"
@@ -112,15 +112,43 @@ copy_atlas_files() {
 
 run_with_spinner "Copying Atlas files" copy_atlas_files
 
-# The flake reads these values during impure evaluation so it can create the
-# correct NixOS and Home Manager user instead of assuming a fixed account.
+create_user_config() {
+  [[ -e "${ATLAS_CONFIG}" ]] && return 0
+
+  local detected_hostname detected_timezone
+  local -a selected_modules=(bluetooth development media productivity)
+  detected_hostname="$(hostnamectl hostname 2>/dev/null || hostname)"
+  detected_timezone="$(timedatectl show --property=Timezone --value 2>/dev/null || true)"
+  compgen -G '/sys/class/power_supply/BAT*' >/dev/null && selected_modules+=(laptop)
+  if grep -Rqs '^0x10de$' /sys/bus/pci/devices/*/vendor 2>/dev/null; then
+    selected_modules+=(nvidia)
+  fi
+
+  mkdir -p -- "${ATLAS_CONFIG_DIR}"
+  {
+    printf '{ atlasModules, ... }:\n\n{\n'
+    printf '  # Remove an import to disable that optional Atlas module.\n'
+    printf '  imports = [\n'
+    for module_name in "${selected_modules[@]}"; do
+      printf '    atlasModules.%s\n' "$module_name"
+    done
+    printf '  ];\n\n'
+    printf '  networking.hostName = "%s";\n' "$detected_hostname"
+    if [[ -n "${detected_timezone}" ]]; then
+      printf '  time.timeZone = "%s";\n' "$detected_timezone"
+    fi
+    printf '}\n'
+  } >"${ATLAS_CONFIG}"
+}
+
+run_with_spinner "Creating user configuration" create_user_config
+
 sudo -v
 run_with_spinner "Rebuilding NixOS" \
   sudo env "ATLAS_USER=${ATLAS_USER}" "ATLAS_HOME=${ATLAS_HOME}" \
-    nixos-rebuild switch --impure --flake "${INSTALL_DIR}#atlas"
+  "ATLAS_CONFIG=${ATLAS_CONFIG}" \
+  nixos-rebuild switch --impure --flake "path:${INSTALL_DIR}#atlas"
 
-# Use the installed scripts directly because the updated session PATH needs a
-# new shell.
 export ATLAS_PATH="${INSTALL_DIR}"
 export PATH="${INSTALL_DIR}/bin:${PATH}"
 theme-set nord
