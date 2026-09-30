@@ -73,3 +73,9 @@ for tpl in "$USER_TEMPLATES_DIR"/*.tpl; do
     filename="$(basename "$tpl" .tpl)"
     sed -f "$sed_script" "$tpl" > "$NEXT_THEME_DIR/$filename"
 done
+
+if grep -R -nE '\{\{[[:space:]]*[A-Za-z0-9_-]+(_strip|_rgb)?[[:space:]]*\}\}' \
+    "$NEXT_THEME_DIR" >&2; then
+    echo "Theme templates contain unresolved color placeholders" >&2
+    exit 1
+fi

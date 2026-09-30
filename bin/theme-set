@@ -20,10 +20,7 @@ THEME_FILE="$THEME_DIR/colors.toml"
 THEME_WALLPAPERS_DIR="$THEME_DIR/wallpapers"
 
 # Validate theme
-if [[ ! -f "$THEME_FILE" ]]; then
-  echo "Theme does not exist: $THEME_FILE"
-  exit 1
-fi
+theme-colors "$theme" >/dev/null
 
 mapfile -t wallpapers < <(
   [[ -d "$THEME_WALLPAPERS_DIR" ]] || exit 0
