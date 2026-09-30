@@ -36,9 +36,34 @@ ensure_config() {
   fi
 }
 
+seed_hypr_config() {
+  local source_dir="$ATLAS_PATH/config/hypr"
+  local target_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hypr"
+  local symlink_target atlas_target
+
+  [[ -d "$source_dir" ]] || die "Hyprland configuration source not found: $source_dir"
+
+  if [[ -L "$target_dir" ]]; then
+    symlink_target="$(readlink -f "$target_dir")"
+    atlas_target="$(readlink -f "$source_dir")"
+    if [[ "$symlink_target" == "$atlas_target" ]]; then
+      printf 'Atlas: migrating the old Hyprland directory symlink.\n'
+      rm "$target_dir"
+    else
+      printf 'Atlas: %s is a user-managed symlink; leaving it untouched.\n' "$target_dir" >&2
+      return
+    fi
+  fi
+
+  mkdir -p "$target_dir"
+  rsync -a --ignore-existing "$source_dir/" "$target_dir/"
+  printf 'Atlas: seeded missing Hyprland files into %s.\n' "$target_dir"
+}
+
 rebuild() {
   sudo env "ATLAS_USER=$(id -un)" "ATLAS_HOME=$HOME" "ATLAS_CONFIG=$ATLAS_CONFIG" \
     nixos-rebuild switch --impure --flake "path:$ATLAS_PATH#atlas"
+  seed_hypr_config
   rm -f "${XDG_STATE_HOME:-$HOME/.local/state}/atlas/rebuild-required"
 }
 
@@ -52,7 +77,7 @@ check_config() {
 doctor() {
   local failures=0 command_name
   printf 'Atlas path: %s\nConfig: %s\n' "$ATLAS_PATH" "$ATLAS_CONFIG"
-  for command_name in nix nixos-rebuild hyprctl qs theme-dir theme-set wallpaper-set; do
+  for command_name in nix nixos-rebuild rsync hyprctl qs theme-dir theme-set wallpaper-set; do
     if ! command -v "$command_name" >/dev/null; then
       printf 'MISSING: %s\n' "$command_name"
       failures=$((failures + 1))
