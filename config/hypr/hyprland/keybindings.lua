@@ -26,6 +26,7 @@ hl.bind(mainMod .. " + SHIFT + M", function() focus_or_open(cliampWindow, cliamp
 hl.bind(mainMod .. " + I", function() focus_or_open(btopWindow, btop) end)
 hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + SPACE", hl.dsp.exec_cmd("qs ipc call launcher toggle"))
+hl.bind(mainMod .. " + comma", hl.dsp.exec_cmd("qs ipc call settings toggle"))
 hl.bind(mainMod .. " + T", hl.dsp.exec_cmd("qs ipc call theme toggle"))
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("qs ipc call wallpaper toggle"))
 hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("qs ipc call themewallpaper toggle"))

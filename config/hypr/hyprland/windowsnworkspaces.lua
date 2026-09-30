@@ -66,6 +66,18 @@ hl.window_rule({
 })
 
 hl.window_rule({
+	name = "settings-float-centered",
+	match = {
+    initial_class = "^org\\.quickshell$",
+    initial_title = "^Atlas Settings$",
+  },
+
+	float = true,
+	size = { "(monitor_w*0.5)", "(monitor_h*0.5)" },
+	center = true,
+})
+
+hl.window_rule({
 	name = "browser-bind",
 	match = { class = class_pattern(browserWindow, browser) },
 	workspace = tostring(browserWorkspace or 2)
