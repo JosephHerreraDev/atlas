@@ -3,54 +3,54 @@
 .theme-dark, .theme-light {
   /* Core colors */
   --background-primary: {{ background }};
-  --background-primary-alt: {{ background }};
-  --background-secondary: {{ background }};
-  --background-secondary-alt: {{ background }};
+  --background-primary-alt: {{ surface }};
+  --background-secondary: {{ surface }};
+  --background-secondary-alt: {{ surface_hover }};
   --text-normal: {{ foreground }};
 
   /* Selection colors */
   --text-selection: {{ selection_background }};
 
   /* Border color */
-  --background-modifier-border: {{ color8 }};
+  --background-modifier-border: {{ border }};
 
   /* Semantic heading colors */
-  --text-title-h1: {{ color1 }};
-  --text-title-h2: {{ color2 }};
-  --text-title-h3: {{ color3 }};
-  --text-title-h4: {{ color4 }};
-  --text-title-h5: {{ color5 }};
-  --text-title-h6: {{ color5 }};
+  --text-title-h1: {{ ansi_red }};
+  --text-title-h2: {{ ansi_green }};
+  --text-title-h3: {{ ansi_yellow }};
+  --text-title-h4: {{ ansi_blue }};
+  --text-title-h5: {{ ansi_magenta }};
+  --text-title-h6: {{ ansi_cyan }};
 
   /* Links and accents */
-  --text-link: {{ color4 }};
+  --text-link: {{ info }};
   --text-accent: {{ accent }};
   --text-accent-hover: {{ accent }};
   --interactive-accent: {{ accent }};
   --interactive-accent-hover: {{ accent }};
 
   /* Muted text */
-  --text-muted: color-mix(in srgb, {{ foreground }} 70%, transparent);
-  --text-faint: color-mix(in srgb, {{ foreground }} 55%, transparent);
+  --text-muted: {{ foreground_muted }};
+  --text-faint: color-mix(in srgb, {{ foreground_muted }} 70%, transparent);
 
   /* Code */
-  --code-normal: {{ color6 }};
+  --code-normal: {{ ansi_cyan }};
 
   /* Errors and success */
-  --text-error: {{ color1 }};
-  --text-error-hover: {{ color1 }};
-  --text-success: {{ color2 }};
+  --text-error: {{ error }};
+  --text-error-hover: {{ error }};
+  --text-success: {{ success }};
 
   /* Tags */
-  --tag-color: {{ color6 }};
-  --tag-background: {{ color8 }};
+  --tag-color: {{ info }};
+  --tag-background: {{ surface_hover }};
 
   /* Graph */
-  --graph-line: {{ color8 }};
+  --graph-line: {{ border }};
   --graph-node: {{ accent }};
-  --graph-node-focused: {{ color4 }};
-  --graph-node-tag: {{ color6 }};
-  --graph-node-attachment: {{ color2 }};
+  --graph-node-focused: {{ info }};
+  --graph-node-tag: {{ ansi_cyan }};
+  --graph-node-attachment: {{ success }};
 }
 
 /* Headers */
@@ -63,16 +63,16 @@
 
 /* Code blocks */
 .markdown-rendered code {
-  color: {{ color6 }};
+  color: {{ ansi_cyan }};
 }
 
 /* Syntax highlighting */
-.cm-s-obsidian span.cm-keyword { color: {{ color1 }}; }
-.cm-s-obsidian span.cm-string { color: {{ color2 }}; }
-.cm-s-obsidian span.cm-number { color: {{ color3 }}; }
-.cm-s-obsidian span.cm-comment { color: {{ color8 }}; }
-.cm-s-obsidian span.cm-operator { color: {{ color4 }}; }
-.cm-s-obsidian span.cm-def { color: {{ color4 }}; }
+.cm-s-obsidian span.cm-keyword { color: {{ ansi_red }}; }
+.cm-s-obsidian span.cm-string { color: {{ ansi_green }}; }
+.cm-s-obsidian span.cm-number { color: {{ ansi_yellow }}; }
+.cm-s-obsidian span.cm-comment { color: {{ foreground_muted }}; }
+.cm-s-obsidian span.cm-operator { color: {{ ansi_blue }}; }
+.cm-s-obsidian span.cm-def { color: {{ ansi_blue }}; }
 
 /* Links */
 .markdown-rendered a {

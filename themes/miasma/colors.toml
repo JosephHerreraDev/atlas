@@ -1,33 +1,33 @@
-# Accent and UI colors
-accent = "#78824b"
-
-# Cursor colors
-cursor = "#c7c7c7"
-
-# Primary colors
-foreground = "#c2c2b0"
+# Semantic UI colors
 background = "#222222"
-
-# Selection colors
-selection_foreground = "#c2c2b0"
+surface = "#222222"
+surface_hover = "#000000"
+foreground = "#c2c2b0"
+foreground_muted = "#9A9A8D"
+border = "#666666"
+accent = "#848D5B"
 selection_background = "#78824b"
+selection_foreground = "#131312"
+cursor = "#c7c7c7"
+error = "#948879"
+warning = "#BA7A54"
+success = "#6D926D"
+info = "#c9a554"
 
-# Normal colors
-color0 = "#000000"
-color1 = "#685742"
-color2 = "#5f875f"
-color3 = "#b36d43"
-color4 = "#78824b"
-color5 = "#bb7744"
-color6 = "#c9a554"
-color7 = "#d7c483"
-
-# Bright colors
-color8 = "#666666"
-color9 = "#685742"
-color10 = "#5f875f"
-color11 = "#b36d43"
-color12 = "#78824b"
-color13 = "#bb7744"
-color14 = "#c9a554"
-color15 = "#d7c483"
+# ANSI terminal colors
+ansi_black = "#000000"
+ansi_red = "#685742"
+ansi_green = "#5f875f"
+ansi_yellow = "#b36d43"
+ansi_blue = "#78824b"
+ansi_magenta = "#bb7744"
+ansi_cyan = "#c9a554"
+ansi_white = "#d7c483"
+ansi_bright_black = "#666666"
+ansi_bright_red = "#685742"
+ansi_bright_green = "#5f875f"
+ansi_bright_yellow = "#b36d43"
+ansi_bright_blue = "#78824b"
+ansi_bright_magenta = "#bb7744"
+ansi_bright_cyan = "#c9a554"
+ansi_bright_white = "#d7c483"
