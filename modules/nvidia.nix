@@ -1,4 +1,4 @@
-{config, pkgs, ...}:
+{ config, ... }:
 
 {
   hardware.nvidia = {
@@ -15,7 +15,6 @@
   };
   
   services.xserver = {
-    enable = true;
     videoDrivers = [ "nvidia" ];
   };
 }

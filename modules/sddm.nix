@@ -14,8 +14,7 @@ let
       runHook postInstall
     '';
   };
-in
-{
+in {
   services.displayManager.sddm = {
     enable = true;
     wayland.enable = false;

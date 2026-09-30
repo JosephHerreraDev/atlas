@@ -39,8 +39,7 @@ let
       runHook postInstall
     '';
   };
-in
-{
+in {
   boot = {
     plymouth = {
       enable = true;
@@ -48,7 +47,6 @@ in
       themePackages = [ atlasPlymouthTheme ];
     };
 
-    # Keep console output from replacing the splash during a normal boot.
     consoleLogLevel = 3;
     initrd.verbose = false;
     kernelParams = [

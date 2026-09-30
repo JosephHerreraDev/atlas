@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 {
   home.packages = with pkgs; [
@@ -8,40 +8,22 @@
 
   gtk = {
     enable = true;
-    theme.name = "Adwaita-dark";
-    iconTheme.name = "Adwaita";
+    theme.name = lib.mkDefault "Adwaita-dark";
+    iconTheme.name = lib.mkDefault "Adwaita";
     cursorTheme = {
-      name = "Adwaita";
-      package = pkgs.adwaita-icon-theme;
-      size = 24;
+      name = lib.mkDefault "Adwaita";
+      package = lib.mkDefault pkgs.adwaita-icon-theme;
+      size = lib.mkDefault 24;
     };
   };
 
-  xdg.configFile."gtk-3.0/settings.ini".text = ''
-    [Settings]
-    gtk-theme-name=Adwaita-dark
-    gtk-application-prefer-dark-theme=1
-    gtk-icon-theme-name=Adwaita
-    gtk-cursor-theme-name=Adwaita
-    gtk-cursor-theme-size=24
-  '';
-
-  xdg.configFile."gtk-4.0/settings.ini".text = ''
-    [Settings]
-    gtk-theme-name=Adwaita-dark
-    gtk-application-prefer-dark-theme=1
-    gtk-icon-theme-name=Adwaita
-    gtk-cursor-theme-name=Adwaita
-    gtk-cursor-theme-size=24
-  '';
-
   home.sessionVariables = {
-    XCURSOR_THEME = "Adwaita";
-    XCURSOR_SIZE = "24";
+    XCURSOR_THEME = lib.mkDefault "Adwaita";
+    XCURSOR_SIZE = lib.mkDefault "24";
   };
 
   dconf.settings."org/gnome/desktop/interface" = {
-    color-scheme = "prefer-dark";
-    gtk-theme = "Adwaita-dark";
+    color-scheme = lib.mkDefault "prefer-dark";
+    gtk-theme = lib.mkDefault "Adwaita-dark";
   };
 }
