@@ -31,16 +31,11 @@ theme_colors() {
   ' "$theme_file"
 }
 
-if [[ ! -d "$THEMES_DIR" ]]; then
-  exit 0
-fi
-
 if [[ "${1:-}" == "--all" ]]; then
-  while IFS= read -r theme_file; do
-    theme="$(basename "$(dirname "$theme_file")")"
+  while IFS= read -r theme; do
     printf '%s|' "$theme"
-    theme_colors "$theme_file"
-  done < <(find "$THEMES_DIR" -mindepth 2 -maxdepth 2 -type f -name 'colors.toml' | sort)
+    theme_colors "$THEMES_DIR/$theme/colors.toml"
+  done < <(theme-list)
   exit 0
 fi
 
@@ -50,10 +45,9 @@ if [[ -z "$theme" ]]; then
   exit 1
 fi
 
-theme_file="$THEMES_DIR/$theme/colors.toml"
-if [[ ! -f "$theme_file" ]]; then
-  echo "Theme does not exist: $theme_file" >&2
+if ! theme-list | grep -Fxq "$theme"; then
+  echo "Theme does not exist: $theme" >&2
   exit 1
 fi
 
-theme_colors "$theme_file"
+theme_colors "$THEMES_DIR/$theme/colors.toml"
