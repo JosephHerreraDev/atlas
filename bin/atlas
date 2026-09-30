@@ -9,6 +9,9 @@ usage() {
   cat <<'EOF'
 Usage:
   atlas config check
+  atlas settings read
+  atlas settings status
+  atlas settings save <system|displays>
   atlas rebuild
   atlas rollback
   atlas doctor
@@ -17,6 +20,14 @@ EOF
 }
 
 die() { printf 'atlas: %s\n' "$*" >&2; exit 1; }
+
+show_logo() {
+  local logo="$ATLAS_PATH/logo.txt"
+  if [[ -r "$logo" ]]; then
+    cat "$logo" >&2
+    printf '\n' >&2
+  fi
+}
 
 ensure_config() {
   if [[ ! -f "$ATLAS_CONFIG" ]]; then
@@ -28,6 +39,7 @@ ensure_config() {
 rebuild() {
   sudo env "ATLAS_USER=$(id -un)" "ATLAS_HOME=$HOME" "ATLAS_CONFIG=$ATLAS_CONFIG" \
     nixos-rebuild switch --impure --flake "path:$ATLAS_PATH#atlas"
+  rm -f "${XDG_STATE_HOME:-$HOME/.local/state}/atlas/rebuild-required"
 }
 
 check_config() {
@@ -68,12 +80,18 @@ theme_has_wallpaper() {
       -print -quit | grep -q .
 }
 
+show_logo
+
 case "${1:-}" in
   config)
     case "${2:-}" in
       check) check_config ;;
       *) usage; exit 2 ;;
     esac
+    ;;
+  settings)
+    shift
+    exec "$ATLAS_PATH/bin/atlas-settings" "$@"
     ;;
   rebuild) rebuild ;;
   rollback) sudo nixos-rebuild switch --rollback ;;
