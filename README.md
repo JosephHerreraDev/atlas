@@ -116,14 +116,33 @@ window-rule, and appearance settings can be edited directly.
 | `atlas config check` | Evaluate the configuration without activating it |
 | `atlas rebuild` | Build and activate the current Atlas configuration |
 | `atlas rollback` | Activate the previous NixOS generation |
-| `atlas doctor` | Check dependencies, configuration, Hyprland, and bundled themes |
+| `atlas doctor` | Check dependencies, configuration, Hyprland, and themes |
 | `atlas update` | Download the latest Atlas source without rebuilding |
 
 ### Themes and wallpapers
 
-Themes are bundled under `themes/<name>`. Open the theme selector with
-`Super + T`. Applying a theme generates its application styles and randomly
-selects a wallpaper from that theme's wallpaper directory.
+Atlas loads bundled themes from `themes/<name>` and custom themes from:
+
+```text
+~/.config/atlas/themes/<name>
+```
+
+A custom theme must contain a complete `colors.toml` and a `wallpapers/`
+directory with at least one `.jpg`, `.jpeg`, `.png`, or `.webp` image:
+
+```text
+~/.config/atlas/themes/my-theme/
+├── colors.toml
+└── wallpapers/
+    └── background.jpg
+```
+
+Custom theme names must not duplicate bundled theme names. The custom theme
+directory is optional and does not need to exist when it is unused.
+
+Open the theme selector with `Super + T`. Applying a theme generates its
+application styles and randomly selects a wallpaper from that theme's
+wallpaper directory.
 
 Generated theme state is stored under:
 
@@ -133,9 +152,10 @@ Generated theme state is stored under:
 
 Open the general wallpaper selector with `Super + W`. General wallpapers are
 read from `~/Pictures/wallpapers`. Use `Super + Alt + W` to select from the
-current bundled theme's wallpapers.
+current theme's wallpapers.
 
-Future versions will support creating themes.
+Atlas does not create or import custom themes; users manage them directly in
+the directory above.
 
 ### Keybindings
 
@@ -185,7 +205,7 @@ atlas doctor
 ```
 
 The doctor checks required commands, evaluates the NixOS configuration, tests
-the running Hyprland session when available, and verifies bundled theme colors
+the running Hyprland session when available, and verifies theme colors
 and wallpapers.
 
 ## Troubleshooting
@@ -203,7 +223,7 @@ Atlas only copies missing Hyprland files. Edit the active files under
 
 ### Theme or wallpaper does not load
 
-Run `atlas doctor` to validate bundled themes. Each theme must contain a valid
+Run `atlas doctor` to validate themes. Each theme must contain a valid
 `colors.toml` and at least one wallpaper.
 
 ## Project structure
