@@ -5,6 +5,13 @@ local suppressMaximizeRule = hl.window_rule({
     suppress_event = "maximize",
 })
 
+local function class_pattern(selector, fallback)
+	if selector ~= nil and selector ~= "" then
+		return string.match(selector, "^class:(.*)$") or selector
+	end
+	return fallback
+end
+
 hl.window_rule({
     name  = "fix-xwayland-drags",
     match = {
@@ -36,8 +43,8 @@ hl.window_rule({
 
 hl.window_rule({
 	name = "music-bind",
-	match = { class = "Spotify" },
-	workspace = "1"
+	match = { class = class_pattern(musicWindow, music) },
+	workspace = tostring(musicWorkspace or 1)
 })
 
 hl.window_rule({
@@ -60,8 +67,8 @@ hl.window_rule({
 
 hl.window_rule({
 	name = "browser-bind",
-	match = { class = browser },
-	workspace = "2"
+	match = { class = class_pattern(browserWindow, browser) },
+	workspace = tostring(browserWorkspace or 2)
 })
 
 hl.window_rule({
@@ -75,6 +82,6 @@ hl.window_rule({
 
 hl.window_rule({
 	name = "notes-bind",
-	match = { class = notes },
-	workspace = "4"
+	match = { class = class_pattern(notesWindow, notes) },
+	workspace = tostring(notesWorkspace or 4)
 })
