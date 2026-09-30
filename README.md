@@ -104,8 +104,17 @@ atlas rebuild
 ### Hyprland configuration
 
 Atlas seeds missing files into `~/.config/hypr` during activation. Files that
-already exist are not overwritten, so monitor, input, application, keybinding,
-window-rule, and appearance settings can be edited directly.
+already exist are not overwritten and can be edited directly.
+
+### Settings app
+
+Open Atlas Settings by clicking the NixOS logo beside the workspaces or pressing
+`Super + ,`. The app manages system and display settings while preserving
+unrelated configuration.
+
+Hyprland pages reload the compositor after saving and restore the previous file
+if Hyprland reports an error. System changes are validated before saving and
+show a rebuild-required indicator until `atlas rebuild` succeeds.
 
 ## Usage
 
@@ -114,6 +123,8 @@ window-rule, and appearance settings can be edited directly.
 | Command | Description |
 | --- | --- |
 | `atlas config check` | Evaluate the configuration without activating it |
+| `atlas settings read` | Print the supported settings as JSON |
+| `atlas settings status` | Report whether a NixOS rebuild is required |
 | `atlas rebuild` | Build and activate the current Atlas configuration |
 | `atlas rollback` | Activate the previous NixOS generation |
 | `atlas doctor` | Check dependencies, configuration, Hyprland, and themes |
@@ -207,6 +218,7 @@ the directory above.
 | --- | --- |
 | `Super + Enter` | Open Kitty |
 | `Super + Space` | Open the application launcher |
+| `Super + ,` | Open Atlas Settings |
 | `Super + T` | Open the theme selector |
 | `Super + W` | Open the general wallpaper selector |
 | `Super + Alt + W` | Open the current-theme wallpaper selector |

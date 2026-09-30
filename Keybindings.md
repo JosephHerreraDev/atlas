@@ -27,6 +27,7 @@
 | Keybinding            | Function                         |
 | --------------------- | -------------------------------- |
 | `SUPER + SPACE`       | App launcher                     |
+| `SUPER + ,`           | Atlas Settings                   |
 | `SUPER + T`           | Theme selector                   |
 | `SUPER + A`           | Notification Center              |
 | `SUPER + W`           | Wallpaper selector               |
