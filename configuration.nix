@@ -1,23 +1,20 @@
-{ config, lib, pkgs, atlasUser, ... }:
+{ lib, pkgs, atlasUser, atlasConfigPaths, ... }:
 
 {
   imports =
     [
       /etc/nixos/hardware-configuration.nix
-      ./modules/nvidia.nix
       ./modules/plymouth.nix
       ./modules/sddm.nix
-    ];
+    ] ++ atlasConfigPaths;
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  networking.hostName = "atlas";
+  networking.hostName = lib.mkDefault "atlas";
   networking.networkmanager.enable = true;
 
-  services.upower.enable = true;
-
-  time.timeZone = "America/Mexico_City";
+  i18n.defaultLocale = lib.mkDefault "en_US.UTF-8";
 
   fonts = {
     packages = with pkgs; [
@@ -39,41 +36,27 @@
   };
 
   programs.dconf.enable = true;
-
-  hardware.bluetooth = {
-      enable = true;
-      powerOnBoot = true;
-    };
-
-  services.blueman.enable = true;
+  services.xserver.enable = true;
 
   users.users.${atlasUser} = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" "video" ];
-    packages = with pkgs; [
-      tree
-    ];
+    packages = [ ];
   };
 
   nixpkgs.config.allowUnfree = true;
 
-  environment.systemPackages = with pkgs; [
+  environment.systemPackages = (with pkgs; [
     cliamp
     hyprpaper
     quickshell
     libnotify
     hyprlock
-    yazi
-    obsidian
-    brave
     git
     btop
     vim
     fastfetch
-    spotify
-    brightnessctl
     playerctl
-    mpv
     grim
     slurp
     wl-clipboard
@@ -83,7 +66,8 @@
     hyprpicker
     wf-recorder
     wget
-  ];
+    rsync
+  ]);
 
   nix.settings.experimental-features = ["nix-command" "flakes"];
 
