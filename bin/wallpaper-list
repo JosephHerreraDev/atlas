@@ -10,7 +10,7 @@ case "$mode" in
     search_dir="$HOME/Pictures/wallpapers"
     ;;
   theme)
-    theme_file="${HOME}/.config/style/current/theme"
+    theme_file="${XDG_CONFIG_HOME:-$HOME/.config}/atlas/style/current/theme"
     [[ -f "$theme_file" ]] || exit 0
     theme="$(<"$theme_file")"
     search_dir="$ATLAS_PATH/themes/$theme/wallpapers"

@@ -21,7 +21,7 @@ case "$wallpaper" in
     ;;
 esac
 
-style_dir="${HOME}/.config/style/current"
+style_dir="${XDG_CONFIG_HOME:-$HOME/.config}/atlas/style/current"
 mkdir -p "$style_dir"
 cp "$wallpaper" "$style_dir/background"
 theme-refresh
