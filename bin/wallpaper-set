@@ -5,6 +5,7 @@ set -euo pipefail
 ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
 general_wallpapers_dir="$(realpath -m "$HOME/Pictures/wallpapers")"
 theme_wallpapers_dir="$(realpath -m "$ATLAS_PATH/themes")"
+custom_theme_wallpapers_dir="$(realpath -m "${XDG_CONFIG_HOME:-$HOME/.config}/atlas/themes")"
 wallpaper="${1:-}"
 
 if [[ -z "$wallpaper" || ! -f "$wallpaper" ]]; then
@@ -14,7 +15,7 @@ fi
 
 wallpaper="$(realpath "$wallpaper")"
 case "$wallpaper" in
-  "$general_wallpapers_dir"/* | "$theme_wallpapers_dir"/*/wallpapers/*) ;;
+  "$general_wallpapers_dir"/* | "$theme_wallpapers_dir"/*/wallpapers/* | "$custom_theme_wallpapers_dir"/*/wallpapers/*) ;;
   *)
     echo "Wallpaper is outside the general or theme wallpaper directories: $wallpaper" >&2
     exit 1

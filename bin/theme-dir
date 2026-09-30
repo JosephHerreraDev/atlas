@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
+CUSTOM_THEMES_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/atlas/themes"
+theme="${1:-}"
+
+[[ -n "$theme" ]] || { echo "Usage: theme-dir <theme>" >&2; exit 2; }
+
+custom_dir="$CUSTOM_THEMES_DIR/$theme"
+bundled_dir="$ATLAS_PATH/themes/$theme"
+custom_exists=false
+bundled_exists=false
+
+[[ -f "$custom_dir/colors.toml" ]] && custom_exists=true
+[[ -f "$bundled_dir/colors.toml" ]] && bundled_exists=true
+
+if [[ "$custom_exists" == true && "$bundled_exists" == true ]]; then
+  echo "Theme name exists in both custom and bundled themes: $theme" >&2
+  exit 1
+fi
+
+if [[ "$custom_exists" == true ]]; then
+  printf '%s\n' "$custom_dir"
+elif [[ "$bundled_exists" == true ]]; then
+  printf '%s\n' "$bundled_dir"
+else
+  echo "Theme does not exist: $theme" >&2
+  exit 1
+fi

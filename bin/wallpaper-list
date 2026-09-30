@@ -13,7 +13,7 @@ case "$mode" in
     theme_file="${XDG_CONFIG_HOME:-$HOME/.config}/atlas/style/current/theme"
     [[ -f "$theme_file" ]] || exit 0
     theme="$(<"$theme_file")"
-    search_dir="$ATLAS_PATH/themes/$theme/wallpapers"
+    search_dir="$(theme-dir "$theme")/wallpapers"
     ;;
   *)
     echo "Usage: wallpaper-list [general|theme]" >&2

@@ -4,8 +4,6 @@ set -euo pipefail
 
 ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
 
-THEMES_DIR="$ATLAS_PATH/themes"
-
 STYLE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/atlas/style"
 CURRENT_THEME_DIR="$STYLE_DIR/current"
 NEXT_THEME_DIR="$STYLE_DIR/next-theme"
@@ -17,7 +15,7 @@ if [[ -z "$theme" ]]; then
   exit 1
 fi
 
-THEME_DIR="$THEMES_DIR/$theme"
+THEME_DIR="$(theme-dir "$theme")"
 THEME_FILE="$THEME_DIR/colors.toml"
 THEME_WALLPAPERS_DIR="$THEME_DIR/wallpapers"
 

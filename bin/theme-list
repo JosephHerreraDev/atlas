@@ -4,10 +4,14 @@ set -euo pipefail
 
 ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
 THEMES_DIR="$ATLAS_PATH/themes"
+CUSTOM_THEMES_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/atlas/themes"
 
-[[ -d "$THEMES_DIR" ]] || exit 0
+roots=()
+[[ -d "$THEMES_DIR" ]] && roots+=("$THEMES_DIR")
+[[ -d "$CUSTOM_THEMES_DIR" ]] && roots+=("$CUSTOM_THEMES_DIR")
+((${#roots[@]} > 0)) || exit 0
 
-find "$THEMES_DIR" -mindepth 2 -maxdepth 2 -type f -name 'colors.toml' \
+find "${roots[@]}" -mindepth 2 -maxdepth 2 -type f -name 'colors.toml' \
   -printf '%h\n' \
   | sed 's|.*/||' \
-  | sort
+  | sort -u

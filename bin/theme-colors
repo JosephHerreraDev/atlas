@@ -2,9 +2,6 @@
 
 set -euo pipefail
 
-ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
-THEMES_DIR="$ATLAS_PATH/themes"
-
 theme_colors() {
   local theme_file="$1"
 
@@ -34,7 +31,7 @@ theme_colors() {
 if [[ "${1:-}" == "--all" ]]; then
   while IFS= read -r theme; do
     printf '%s|' "$theme"
-    theme_colors "$THEMES_DIR/$theme/colors.toml"
+    theme_colors "$(theme-dir "$theme")/colors.toml"
   done < <(theme-list)
   exit 0
 fi
@@ -50,4 +47,4 @@ if ! theme-list | grep -Fxq "$theme"; then
   exit 1
 fi
 
-theme_colors "$THEMES_DIR/$theme/colors.toml"
+theme_colors "$(theme-dir "$theme")/colors.toml"
