@@ -140,6 +140,48 @@ directory with at least one `.jpg`, `.jpeg`, `.png`, or `.webp` image:
 Custom theme names must not duplicate bundled theme names. The custom theme
 directory is optional and does not need to exist when it is unused.
 
+Every theme uses a required 30-color schema. Colors must be written as
+six-digit hexadecimal values:
+
+```toml
+# Semantic UI colors
+background = "#2e3440"
+surface = "#2e3440"
+surface_hover = "#3b4252"
+foreground = "#d8dee9"
+foreground_muted = "#aeb4bf"
+border = "#4c566a"
+accent = "#81a1c1"
+selection_background = "#4c566a"
+selection_foreground = "#d8dee9"
+cursor = "#d8dee9"
+error = "#cf898f"
+warning = "#ebcb8b"
+success = "#a3be8c"
+info = "#88c0d0"
+
+# ANSI terminal colors
+ansi_black = "#3b4252"
+ansi_red = "#bf616a"
+ansi_green = "#a3be8c"
+ansi_yellow = "#ebcb8b"
+ansi_blue = "#81a1c1"
+ansi_magenta = "#b48ead"
+ansi_cyan = "#88c0d0"
+ansi_white = "#e5e9f0"
+ansi_bright_black = "#4c566a"
+ansi_bright_red = "#bf616a"
+ansi_bright_green = "#a3be8c"
+ansi_bright_yellow = "#ebcb8b"
+ansi_bright_blue = "#81a1c1"
+ansi_bright_magenta = "#b48ead"
+ansi_bright_cyan = "#8fbcbb"
+ansi_bright_white = "#eceff4"
+```
+
+Additional keys are allowed for personal templates, but all 30 standard keys
+are mandatory.
+
 Open the theme selector with `Super + T`. Applying a theme generates its
 application styles and randomly selects a wallpaper from that theme's
 wallpaper directory.
@@ -224,7 +266,8 @@ Atlas only copies missing Hyprland files. Edit the active files under
 ### Theme or wallpaper does not load
 
 Run `atlas doctor` to validate themes. Each theme must contain a valid
-`colors.toml` and at least one wallpaper.
+`colors.toml` with the 30 required colors and at least one wallpaper. Custom
+themes using the former numbered-color schema must be migrated manually.
 
 ## Project structure
 
