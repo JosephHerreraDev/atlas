@@ -67,6 +67,7 @@
     wf-recorder
     wget
     rsync
+    python3
   ]);
 
   nix.settings.experimental-features = ["nix-command" "flakes"];
