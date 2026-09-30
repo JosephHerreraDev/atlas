@@ -72,7 +72,7 @@ in
     };
 
   home.activation.installHyprConfig =
-    lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    lib.hm.dag.entryAfter [ "linkGeneration" ] ''
       source_dir="${dotfiles}/hypr"
       target_dir="${config.home.homeDirectory}/.config/hypr"
       skip_install=false
