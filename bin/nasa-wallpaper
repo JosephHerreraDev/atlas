@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+wallpaper_dir="${ATLAS_SDDM_WALLPAPER_DIR:-/var/lib/atlas/sddm}"
+wallpaper="$wallpaper_dir/wallpaper.jpg"
+metadata_file="$(mktemp)"
+download_file=""
+
+cleanup() {
+  rm -f -- "$metadata_file"
+  if [[ -n "$download_file" ]]; then
+    rm -f -- "$download_file"
+  fi
+}
+trap cleanup EXIT
+
+for command_name in curl jq; do
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    echo "Missing required command: $command_name" >&2
+    exit 1
+  fi
+done
+
+curl -fsSL --retry 3 \
+  "https://science.nasa.gov/wp-json/wp/v2/apod-basic/" \
+  -o "$metadata_file"
+
+apod='if type == "array" then .[0] else . end'
+media_type="$(jq -r "$apod | .media_type // empty" "$metadata_file")"
+image_url="$(jq -r "$apod | .hdurl // empty" "$metadata_file")"
+title="$(jq -r "$apod | .title // \"NASA Astronomy Picture of the Day\"" "$metadata_file")"
+
+if [[ "$media_type" != "image" || -z "$image_url" ]]; then
+  echo "Today's NASA Astronomy Picture of the Day is not a downloadable image." >&2
+  exit 1
+fi
+
+mkdir -p -- "$wallpaper_dir"
+download_file="$(mktemp --tmpdir="$wallpaper_dir" .wallpaper.XXXXXX)"
+curl -fsSL --retry 3 "$image_url" -o "$download_file"
+chmod 0644 "$download_file"
+mv -f -- "$download_file" "$wallpaper"
+download_file=""
+
+echo "Downloaded $title to $wallpaper"
