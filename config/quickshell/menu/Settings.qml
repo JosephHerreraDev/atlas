@@ -3,6 +3,7 @@ import Quickshell.Io
 import Quickshell.Widgets
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import "../"
 import "../shared/"
@@ -23,6 +24,9 @@ Scope {
   property var sectionErrors: ({})
   property var dirtySections: ({})
   property var detectedMonitors: []
+  property var timezones: []
+  property bool timezonesLoading: false
+  property string timezoneError: ""
   property bool rebuildRequired: false
 
   readonly property var pages: [
@@ -37,6 +41,7 @@ Scope {
   function open() {
     opened = true
     refresh()
+    loadTimezones()
     Qt.callLater(focusCurrentPage)
   }
 
@@ -152,6 +157,45 @@ Scope {
     setValue("displays", "monitors", monitors)
   }
 
+  function loadTimezones() {
+    if (timezones.length > 0 || timezonesLoading || timezoneProcess.running)
+      return
+    timezonesLoading = true
+    timezoneError = ""
+    timezoneProcess.exec(["find", "-L", "/etc/zoneinfo", "-type", "f"])
+  }
+
+  function timezoneRegion(zone) {
+    const separator = zone.indexOf("/")
+    return separator > 0 ? zone.substring(0, separator) : "Other"
+  }
+
+  function timezoneRegions() {
+    const regions = []
+    for (let index = 0; index < timezones.length; ++index) {
+      const region = timezoneRegion(timezones[index])
+      if (regions.indexOf(region) === -1)
+        regions.push(region)
+    }
+    return regions.sort(function(left, right) {
+      if (left === "Other") return 1
+      if (right === "Other") return -1
+      return left.localeCompare(right)
+    })
+  }
+
+  function timezonesForRegion(region) {
+    return timezones.filter(function(zone) {
+      return timezoneRegion(zone) === region
+    })
+  }
+
+  function timezoneLabel(zone) {
+    const separator = zone.indexOf("/")
+    return (separator >= 0 ? zone.substring(separator + 1) : zone)
+      .replace(/_/g, " ")
+  }
+
   function resetSection() {
     if (originalSections[currentSection] === undefined)
       return
@@ -265,6 +309,35 @@ Scope {
     }
   }
 
+  Process {
+    id: timezoneProcess
+    stdout: StdioCollector {
+      id: timezoneOutput
+    }
+    stderr: StdioCollector {
+      id: timezoneErrorOutput
+    }
+    onExited: function(exitCode) {
+      root.timezonesLoading = false
+      if (exitCode !== 0) {
+        root.timezoneError = timezoneErrorOutput.text.trim()
+          || "Could not load available time zones"
+        return
+      }
+      root.timezones = timezoneOutput.text.split("\n").map(function(path) {
+        return path.indexOf("/etc/zoneinfo/") === 0
+          ? path.substring(14) : ""
+      }).filter(function(zone) {
+        if (zone === "" || zone.indexOf("posix/") === 0
+            || zone.indexOf("right/") === 0)
+          return false
+        return ["iso3166.tab", "zone.tab", "zone1970.tab", "leapseconds",
+          "leap-seconds.list", "localtime", "posixrules", "tzdata.zi"]
+          .indexOf(zone) === -1
+      }).sort()
+    }
+  }
+
   Timer {
     interval: 2000
     repeat: true
@@ -360,6 +433,160 @@ Scope {
       checked: toggleRoot.checked
       accessibleName: toggleRoot.label
       onToggled: function(value) { toggleRoot.changed(value) }
+    }
+  }
+
+  component TimezoneDropdown: ColumnLayout {
+    id: dropdownRoot
+    property string label: ""
+    property var options: []
+    property string selectedValue: ""
+    property var optionLabel: function(value) { return value }
+    signal chosen(string value)
+    Layout.fillWidth: true
+    spacing: Theme.spaceXs
+
+    Text {
+      text: dropdownRoot.label
+      color: Theme.foregroundMuted
+      font.pixelSize: Theme.fontCaption
+      font.weight: Theme.weightMedium
+    }
+
+    Button {
+      id: dropdownButton
+      Layout.fillWidth: true
+      Layout.preferredHeight: 34
+      enabled: dropdownRoot.options.length > 0
+      horizontalPadding: Theme.spaceSm
+      buttonColor: Theme.surfaceHover
+      buttonBorderColor: activeFocus ? Theme.accent : Theme.border
+      accessibleName: dropdownRoot.label + ", "
+        + dropdownRoot.optionLabel(dropdownRoot.selectedValue)
+      onClicked: dropdownPopup.open()
+
+      RowLayout {
+        anchors.fill: parent
+        anchors.leftMargin: Theme.spaceSm
+        anchors.rightMargin: Theme.spaceSm
+        Text {
+          Layout.fillWidth: true
+          text: dropdownRoot.selectedValue !== ""
+            ? dropdownRoot.optionLabel(dropdownRoot.selectedValue) : "Select"
+          color: dropdownRoot.selectedValue !== ""
+            ? Theme.foreground : Theme.foregroundMuted
+          font.pixelSize: Theme.fontBody
+          elide: Text.ElideRight
+        }
+        Text { text: "▾"; color: Theme.foregroundMuted; font.pixelSize: Theme.fontBody }
+      }
+    }
+
+    Controls.Popup {
+      id: dropdownPopup
+      y: dropdownButton.y + dropdownButton.height + Theme.spaceXs
+      width: dropdownRoot.width
+      height: Math.min(320, dropdownRoot.options.length * 32 + Theme.spaceSm * 2)
+      padding: Theme.spaceSm
+      focus: true
+      closePolicy: Controls.Popup.CloseOnEscape
+        | Controls.Popup.CloseOnPressOutside
+      onOpened: {
+        dropdownList.currentIndex = Math.max(0,
+          dropdownRoot.options.indexOf(dropdownRoot.selectedValue))
+        dropdownList.positionViewAtIndex(dropdownList.currentIndex, ListView.Center)
+        dropdownList.forceActiveFocus()
+      }
+      background: Rectangle {
+        color: Theme.surface
+        border.width: Theme.borderWidth
+        border.color: Theme.border
+        radius: Theme.radiusMd
+      }
+      contentItem: ListView {
+        id: dropdownList
+        clip: true
+        model: dropdownRoot.options
+        boundsBehavior: Flickable.StopAtBounds
+        Keys.onReturnPressed: chooseCurrent()
+        Keys.onEnterPressed: chooseCurrent()
+        function chooseCurrent() {
+          if (currentIndex >= 0) {
+            dropdownRoot.chosen(dropdownRoot.options[currentIndex])
+            dropdownPopup.close()
+          }
+        }
+        delegate: Rectangle {
+          required property string modelData
+          required property int index
+          width: dropdownList.width
+          height: 32
+          radius: Theme.radiusSm
+          color: index === dropdownList.currentIndex
+            ? Theme.surfaceHover : "transparent"
+          Text {
+            anchors.fill: parent
+            anchors.leftMargin: Theme.spaceSm
+            anchors.rightMargin: Theme.spaceSm
+            verticalAlignment: Text.AlignVCenter
+            text: dropdownRoot.optionLabel(modelData)
+            color: Theme.foreground
+            font.pixelSize: Theme.fontBody
+            elide: Text.ElideRight
+          }
+          HoverHandler {
+            onHoveredChanged: if (hovered) dropdownList.currentIndex = index
+          }
+          TapHandler {
+            onTapped: {
+              dropdownRoot.chosen(modelData)
+              dropdownPopup.close()
+            }
+          }
+        }
+        ScrollBar.vertical: ScrollBar {}
+      }
+    }
+  }
+
+  component TimezoneSelector: ColumnLayout {
+    id: timezoneRoot
+    readonly property string timezone: root.value("system", "timezone", "")
+    readonly property string region: root.timezoneRegion(timezone)
+    readonly property var regions: root.timezoneRegions()
+    readonly property var regionalTimezones: root.timezonesForRegion(region)
+    Layout.fillWidth: true
+    spacing: Theme.spaceXs
+
+    RowLayout {
+      Layout.fillWidth: true
+      spacing: Theme.spaceSm
+      TimezoneDropdown {
+        label: "Timezone region"
+        options: timezoneRoot.regions
+        selectedValue: timezoneRoot.region
+        onChosen: function(value) {
+          const choices = root.timezonesForRegion(value)
+          if (choices.length > 0)
+            root.setValue("system", "timezone", choices[0])
+        }
+      }
+      TimezoneDropdown {
+        label: "Timezone"
+        options: timezoneRoot.regionalTimezones
+        selectedValue: timezoneRoot.timezone
+        optionLabel: function(value) { return root.timezoneLabel(value) }
+        onChosen: function(value) { root.setValue("system", "timezone", value) }
+      }
+    }
+
+    Text {
+      visible: root.timezonesLoading || root.timezoneError !== ""
+      Layout.fillWidth: true
+      text: root.timezonesLoading ? "Loading time zones…" : root.timezoneError
+      color: root.timezoneError !== "" ? Theme.error : Theme.foregroundMuted
+      font.pixelSize: Theme.fontCaption
+      wrapMode: Text.WordWrap
     }
   }
 
@@ -560,7 +787,7 @@ Scope {
       spacing: Theme.spaceMd
       SectionTitle { title: "System"; description: "Machine identity and optional Atlas modules. Saving validates the complete NixOS configuration before changing it." }
       LabeledField { label: "Hostname"; fieldText: root.value("system", "hostname", ""); onCommitted: function(value) { root.setValue("system", "hostname", value) } }
-      LabeledField { label: "Timezone"; placeholder: "America/Mexico_City"; fieldText: root.value("system", "timezone", ""); onCommitted: function(value) { root.setValue("system", "timezone", value) } }
+      TimezoneSelector {}
       Text { text: "Optional modules"; color: Theme.foreground; font.pixelSize: Theme.fontTitle; font.weight: Theme.weightStrong }
       Repeater {
         model: ["bluetooth", "development", "media", "productivity", "laptop", "nvidia"]
