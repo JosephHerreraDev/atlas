@@ -50,7 +50,8 @@ Alternatively, install from a local checkout:
 
 The installer:
 
-1. Copies Atlas to `~/.local/share/atlas` when it is not already installed.
+1. Copies Atlas to `~/.local/share/atlas` when it is not already installed and
+   initializes it as a Git checkout.
 2. Creates `~/.config/atlas/config.nix` if it does not exist.
 3. Detects the hostname, time zone, battery, and NVIDIA hardware.
 4. Enables the applicable optional modules in the user configuration.
@@ -238,9 +239,7 @@ atlas config check
 atlas rebuild
 ```
 
-For Git installations, `atlas update` performs a fast-forward-only pull. For
-archive installations, it downloads the current `main` branch and stores
-replaced files under `~/.local/state/atlas/backups/<timestamp>`.
+For Git installations, `atlas update` performs a fast-forward-only pull.
 
 Updates do not overwrite the user configuration. An update is not active until `atlas rebuild` succeeds.
 

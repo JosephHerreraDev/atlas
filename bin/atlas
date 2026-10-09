@@ -4,6 +4,7 @@ set -euo pipefail
 
 ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
 ATLAS_CONFIG="${ATLAS_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/atlas/config.nix}"
+ATLAS_REPOSITORY="https://github.com/JosephHerreraDev/atlas.git"
 
 usage() {
   cat <<'EOF'
@@ -122,10 +123,10 @@ case "${1:-}" in
   rollback) sudo nixos-rebuild switch --rollback ;;
   doctor) doctor ;;
   update)
-    if [[ -d "$ATLAS_PATH/.git" ]]; then
+    if git -C "$ATLAS_PATH" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
       git -C "$ATLAS_PATH" pull --ff-only
     else
-      for command_name in curl tar rsync; do
+      for command_name in curl git tar rsync; do
         command -v "$command_name" >/dev/null || die "required command not found: $command_name"
       done
       update_dir="$(mktemp -d)"
@@ -134,7 +135,13 @@ case "${1:-}" in
       curl -fsSL "https://github.com/JosephHerreraDev/atlas/archive/refs/heads/main.tar.gz" \
         | tar -xz --strip-components=1 -C "$update_dir"
       mkdir -p "$backup_dir"
-      rsync -a --delete --backup --backup-dir="$backup_dir" "$update_dir/" "$ATLAS_PATH/"
+      rsync -a --delete --exclude='/.git/' --backup \
+        --backup-dir="$backup_dir" "$update_dir/" "$ATLAS_PATH/"
+      git -C "$ATLAS_PATH" init --initial-branch=main
+      git -C "$ATLAS_PATH" remote add origin "$ATLAS_REPOSITORY"
+      git -C "$ATLAS_PATH" fetch origin main
+      git -C "$ATLAS_PATH" reset --mixed origin/main
+      git -C "$ATLAS_PATH" branch --set-upstream-to=origin/main main
       echo "Replaced files were backed up under $backup_dir."
     fi
     echo 'Update downloaded. Review the changes, then run `atlas rebuild`.'

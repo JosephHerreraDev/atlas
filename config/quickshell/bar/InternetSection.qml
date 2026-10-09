@@ -86,7 +86,7 @@ SystemSection {
     Toggle {
       accessibleName: "Wi-Fi"
       checked: Networking.wifiEnabled
-      enabled: Networking.wifiHardwareEnabled
+      enabled: SystemState.wifiAvailable
       onToggled: function(checked) {
         Networking.wifiEnabled = checked
       }
@@ -101,8 +101,8 @@ SystemSection {
 
   Text {
     width: parent.width
-    visible: !Networking.wifiHardwareEnabled || !Networking.wifiEnabled
-    text: Networking.wifiHardwareEnabled
+    visible: !SystemState.wifiAvailable || !Networking.wifiEnabled
+    text: SystemState.wifiAvailable
       ? "Turn on Wi-Fi to search nearby networks"
       : "Wi-Fi is unavailable"
     color: Theme.border
@@ -113,7 +113,7 @@ SystemSection {
   Column {
     width: parent.width
     spacing: root.spaceSm
-    visible: Networking.wifiHardwareEnabled && Networking.wifiEnabled
+    visible: SystemState.wifiAvailable && Networking.wifiEnabled
 
   Text {
     width: parent.width

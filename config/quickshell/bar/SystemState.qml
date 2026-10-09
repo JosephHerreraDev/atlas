@@ -50,6 +50,7 @@ Singleton {
     : null
   readonly property var availableNetworks: networkList("available")
   readonly property var closeNetworks: networkList("close")
+  readonly property bool wifiAvailable: wifiDevice() !== null
   readonly property var bluetoothAdapter:
     BluetoothService.Bluetooth.defaultAdapter
   readonly property var connectedBluetoothDevices:
@@ -122,6 +123,14 @@ Singleton {
         : networkName(left).localeCompare(networkName(right))
     })
     return result
+  }
+
+  function wifiDevice(): var {
+    for (const device of Networking.devices.values) {
+      if (device.type === DeviceType.Wifi)
+        return device
+    }
+    return null
   }
 
   function networkName(network): string {

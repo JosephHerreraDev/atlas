@@ -5,9 +5,11 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     home-manager.url = "github:nix-community/home-manager/release-26.05";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
+    quickshell.url = "github:quickshell-mirror/quickshell/v0.3.2";
+    quickshell.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, home-manager, ... }:
+  outputs = { self, nixpkgs, home-manager, quickshell, ... }:
     let
       atlasSystemEnv = builtins.getEnv "ATLAS_SYSTEM";
       system = if atlasSystemEnv != "" then atlasSystemEnv else builtins.currentSystem;
@@ -36,6 +38,11 @@
           ./configuration.nix
           home-manager.nixosModules.home-manager
           {
+            nixpkgs.overlays = [
+              (_: _: {
+                quickshell = quickshell.packages.${system}.default;
+              })
+            ];
             home-manager = {
               useGlobalPkgs = true;
               useUserPackages = true;

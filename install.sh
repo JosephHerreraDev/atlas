@@ -3,6 +3,7 @@
 set -Eeuo pipefail
 
 readonly REPOSITORY_ARCHIVE="https://github.com/JosephHerreraDev/atlas/archive/refs/heads/main.tar.gz"
+readonly REPOSITORY_URL="https://github.com/JosephHerreraDev/atlas.git"
 readonly INSTALL_DIR="${HOME}/.local/share/atlas"
 readonly ATLAS_USER="$(id -un)"
 readonly ATLAS_HOME="${HOME}"
@@ -148,6 +149,22 @@ run_with_spinner "Rebuilding NixOS" \
   sudo env "ATLAS_USER=${ATLAS_USER}" "ATLAS_HOME=${ATLAS_HOME}" \
   "ATLAS_CONFIG=${ATLAS_CONFIG}" \
   nixos-rebuild switch --impure --flake "path:${INSTALL_DIR}#atlas"
+
+initialize_git_checkout() {
+  if git -C "${INSTALL_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    return 0
+  fi
+
+  git -C "${INSTALL_DIR}" init --initial-branch=main
+  git -C "${INSTALL_DIR}" remote add origin "${REPOSITORY_URL}"
+  git -C "${INSTALL_DIR}" fetch origin main
+  # Attach the downloaded files to the fetched commit without overwriting any
+  # file if main advanced while the system was rebuilding.
+  git -C "${INSTALL_DIR}" reset --mixed origin/main
+  git -C "${INSTALL_DIR}" branch --set-upstream-to=origin/main main
+}
+
+run_with_spinner "Initializing Atlas Git checkout" initialize_git_checkout
 
 export ATLAS_PATH="${INSTALL_DIR}"
 export PATH="${INSTALL_DIR}/bin:${PATH}"
