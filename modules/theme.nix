@@ -3,6 +3,7 @@
 {
   home.packages = with pkgs; [
     adwaita-icon-theme
+    bibata-cursors
     gnome-themes-extra
   ];
 
@@ -26,4 +27,5 @@
     color-scheme = lib.mkDefault "prefer-dark";
     gtk-theme = lib.mkDefault "Adwaita-dark";
   };
+
 }

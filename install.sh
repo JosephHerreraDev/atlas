@@ -116,7 +116,7 @@ create_user_config() {
   [[ -e "${ATLAS_CONFIG}" ]] && return 0
 
   local detected_hostname detected_timezone
-  local -a selected_modules=(bluetooth development media productivity)
+  local -a selected_modules=(development media productivity)
   detected_hostname="$(hostnamectl hostname 2>/dev/null || hostname)"
   detected_timezone="$(timedatectl show --property=Timezone --value 2>/dev/null || true)"
   compgen -G '/sys/class/power_supply/BAT*' >/dev/null && selected_modules+=(laptop)
