@@ -1,3 +1,10 @@
+-- atlas-wallpaper-directory = ""
+-- atlas-wallpaper-theme = false
+-- atlas-sddm-wallpaper = false
+-- atlas-wallpaper-rotation = false
+-- atlas-wallpaper-rotation-source = "theme"
+-- atlas-wallpaper-rotation-interval = 900
+
 hl.config({
   general = {
     gaps_in  = 5,
@@ -17,19 +24,30 @@ hl.config({
 
     active_opacity   = 1.0,
     inactive_opacity = 1.0,
+    fullscreen_opacity = 1.0,
+
+    dim_inactive = false,
+    dim_around   = 0.4,
+    dim_special  = 0.2,
 
     shadow = {
       enabled      = true,
       range        = 4,
       render_power = 3,
+      scale        = 1.0,
       color        = 0xee1a1a1a,
     },
 
     blur = {
-      enabled   = true,
-      size      = 3,
-      passes    = 1,
-      vibrancy  = 0.1696,
+      enabled            = true,
+      size               = 3,
+      passes             = 1,
+      ignore_opacity     = false,
+      noise              = 0.0117,
+      contrast           = 0.8916,
+      brightness         = 0.8172,
+      vibrancy           = 0.1696,
+      vibrancy_darkness  = 0.0,
     },
   },
 
@@ -89,4 +107,3 @@ hl.config({
     disable_hyprland_logo   = true,
   },
 })
-

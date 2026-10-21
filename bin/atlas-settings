@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -38,7 +39,25 @@ def paths() -> dict[str, Path]:
     return {
         "system": Path(os.environ.get("ATLAS_CONFIG", str(base / "atlas/config.nix"))),
         "displays": base / "hypr/hyprland/monitors.lua",
+        "input": base / "hypr/hyprland/input.lua",
+        "power": base / "hypr/hypridle.conf",
+        "appearance": base / "hypr/hyprland/looknfeel.lua",
     }
+
+
+def default_path(section: str) -> Path | None:
+    if section == "power":
+        return atlas_path() / "config/hypr/hypridle.conf"
+    return None
+
+
+def read_section_text(section: str, path: Path) -> str:
+    if path.exists():
+        return read_text(path)
+    fallback = default_path(section)
+    if fallback is not None and fallback.exists():
+        return read_text(fallback)
+    return read_text(path)
 
 
 def read_text(path: Path) -> str:
@@ -68,6 +87,13 @@ def scalar(pattern: str, text: str, label: str, cast=lambda value: value):
     return cast(matches[0].group(1))
 
 
+def optional_scalar(pattern: str, text: str, default: Any, cast=lambda value: value):
+    matches = list(re.finditer(pattern, text, re.MULTILINE))
+    if len(matches) > 1:
+        raise SettingsError("Found duplicate optional setting")
+    return default if not matches else cast(matches[0].group(1))
+
+
 def read_system(text: str) -> dict[str, Any]:
     import_matches = list(re.finditer(r"\bimports\s*=\s*\[(.*?)\]\s*;", text, re.DOTALL))
     if len(import_matches) != 1:
@@ -86,7 +112,11 @@ def read_system(text: str) -> dict[str, Any]:
     enabled = [name for name in MODULES if name in enabled]
     hostname = scalar(r'^\s*networking\.hostName\s*=\s*"((?:\\.|[^\"])*)"\s*;', text, "networking.hostName", decode_quoted)
     timezone = scalar(r'^\s*time\.timeZone\s*=\s*"((?:\\.|[^\"])*)"\s*;', text, "time.timeZone", decode_quoted)
-    return {"modules": enabled, "hostname": hostname, "timezone": timezone}
+    font_family = optional_scalar(r'^\s*atlas\.fontFamily\s*=\s*"((?:\\.|[^\"])*)"\s*;', text, "FiraCode Nerd Font Mono", decode_quoted)
+    cursor_theme = optional_scalar(r'^\s*atlas\.cursorTheme\s*=\s*"((?:\\.|[^\"])*)"\s*;', text, "Adwaita", decode_quoted)
+    cursor_size = optional_scalar(r'^\s*atlas\.cursorSize\s*=\s*(\d+)\s*;', text, 24, int)
+    return {"modules": enabled, "hostname": hostname, "timezone": timezone,
+            "fontFamily": font_family, "cursorTheme": cursor_theme, "cursorSize": cursor_size}
 
 
 def patch_system(text: str, data: dict[str, Any]) -> str:
@@ -99,6 +129,18 @@ def patch_system(text: str, data: dict[str, Any]) -> str:
         raise SettingsError("Hostname must contain 1–63 letters, digits, dots, or hyphens")
     if not isinstance(timezone, str) or not re.fullmatch(r"[A-Za-z0-9_+.-]+(?:/[A-Za-z0-9_+.-]+)+", timezone):
         raise SettingsError("Timezone must be an IANA name such as America/Mexico_City")
+    font_family = data.get("fontFamily")
+    cursor_theme = data.get("cursorTheme")
+    cursor_size = data.get("cursorSize")
+    if not isinstance(font_family, str) or not 1 <= len(font_family) <= 128 or any(char in font_family for char in "\n\r\t"):
+        raise SettingsError("Font family must be a valid installed font name")
+    if not isinstance(cursor_theme, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}", cursor_theme):
+        raise SettingsError("Invalid cursor theme")
+    installed_cursor_themes = detected_cursor_themes()
+    if installed_cursor_themes and cursor_theme not in installed_cursor_themes:
+        raise SettingsError("Cursor theme is not installed")
+    if isinstance(cursor_size, bool) or not isinstance(cursor_size, int) or not 12 <= cursor_size <= 64:
+        raise SettingsError("Cursor size must be between 12 and 64")
 
     match = re.search(r"\bimports\s*=\s*\[(.*?)\](\s*;)", text, re.DOTALL)
     if not match:
@@ -120,6 +162,20 @@ def patch_system(text: str, data: dict[str, Any]) -> str:
         text, count = re.subn(pattern, lambda found, v=value: found.group(1) + v, text, flags=re.MULTILINE)
         if count != 1:
             raise SettingsError("Cannot safely patch hostname/timezone; expected canonical assignments")
+
+    assignments = {
+        r'^\s*atlas\.fontFamily\s*=\s*"(?:\\.|[^\"])*"\s*;': f"  atlas.fontFamily = {quoted(font_family)};",
+        r'^\s*atlas\.cursorTheme\s*=\s*"(?:\\.|[^\"])*"\s*;': f"  atlas.cursorTheme = {quoted(cursor_theme)};",
+        r'^\s*atlas\.cursorSize\s*=\s*\d+\s*;': f"  atlas.cursorSize = {cursor_size};",
+    }
+    for pattern, line in assignments.items():
+        if re.search(pattern, text, re.MULTILINE):
+            text = re.sub(pattern, line, text, count=1, flags=re.MULTILINE)
+        else:
+            closing = text.rfind("}")
+            if closing < 0:
+                raise SettingsError("Cannot add Atlas appearance settings")
+            text = text[:closing] + "\n" + line + "\n" + text[closing:]
     return text
 
 
@@ -168,24 +224,487 @@ def patch_displays(text: str, data: dict[str, Any]) -> str:
     return "\n\n".join(rendered) + "\n"
 
 
-READERS = {"system": read_system, "displays": read_displays}
-PATCHERS = {"system": patch_system, "displays": patch_displays}
+def input_body(text: str) -> re.Match[str]:
+    matches = list(
+        re.finditer(
+            r"hl\.config\(\{\s*input\s*=\s*\{(?P<body>.*?)^\s{4}\},\s*^\}\)",
+            text,
+            re.MULTILINE | re.DOTALL,
+        )
+    )
+    if len(matches) != 1:
+        raise SettingsError(f"Expected one canonical Hyprland input block; found {len(matches)}")
+    return matches[0]
+
+
+def read_input(text: str) -> dict[str, Any]:
+    body = input_body(text).group("body")
+    return {
+        "layout": scalar(r'^\s*kb_layout\s*=\s*"((?:\\.|[^\"])*)"\s*,?', body, "input kb_layout", decode_quoted),
+        "variant": scalar(r'^\s*kb_variant\s*=\s*"((?:\\.|[^\"])*)"\s*,?', body, "input kb_variant", decode_quoted),
+        "followMouse": scalar(r"^\s*follow_mouse\s*=\s*([0-3])\s*,?", body, "input follow_mouse", int),
+        "sensitivity": scalar(r"^\s*sensitivity\s*=\s*(-?(?:\d+(?:\.\d*)?|\.\d+))\s*,?", body, "input sensitivity", float),
+        "naturalScroll": scalar(r"^\s*natural_scroll\s*=\s*(true|false)\s*,?", body, "touchpad natural_scroll", lambda value: value == "true"),
+    }
+
+
+def patch_input(text: str, data: dict[str, Any]) -> str:
+    match = input_body(text)
+    body = match.group("body")
+    layout = data.get("layout")
+    variant = data.get("variant")
+    follow_mouse = data.get("followMouse")
+    sensitivity = data.get("sensitivity")
+    natural_scroll = data.get("naturalScroll")
+    if not isinstance(layout, str) or not layout or "\n" in layout or "\r" in layout:
+        raise SettingsError("Keyboard layout must be a non-empty single-line value")
+    if not isinstance(variant, str) or "\n" in variant or "\r" in variant:
+        raise SettingsError("Keyboard variant must be a single-line value")
+    if not isinstance(follow_mouse, int) or isinstance(follow_mouse, bool) or not 0 <= follow_mouse <= 3:
+        raise SettingsError("Follow-mouse mode must be an integer from 0 to 3")
+    if not isinstance(sensitivity, (int, float)) or isinstance(sensitivity, bool) or not -1 <= sensitivity <= 1:
+        raise SettingsError("Pointer sensitivity must be between -1 and 1")
+    if not isinstance(natural_scroll, bool):
+        raise SettingsError("Natural scrolling must be true or false")
+
+    replacements = {
+        r'(^\s*kb_layout\s*=\s*)"(?:\\.|[^\"])*"': quoted(layout),
+        r'(^\s*kb_variant\s*=\s*)"(?:\\.|[^\"])*"': quoted(variant),
+        r"(^\s*follow_mouse\s*=\s*)[0-3]": str(follow_mouse),
+        r"(^\s*sensitivity\s*=\s*)-?(?:\d+(?:\.\d*)?|\.\d+)": f"{float(sensitivity):.2f}".rstrip("0").rstrip("."),
+        r"(^\s*natural_scroll\s*=\s*)(?:true|false)": "true" if natural_scroll else "false",
+    }
+    for pattern, value in replacements.items():
+        body, count = re.subn(pattern, lambda found, v=value: found.group(1) + v, body, flags=re.MULTILINE)
+        if count != 1:
+            raise SettingsError("Cannot safely patch the canonical Hyprland input block")
+    return text[:match.start("body")] + body + text[match.end("body"):]
+
+
+def read_power(text: str) -> dict[str, Any]:
+    return {
+        "lockTimeout": scalar(r"^# atlas-lock-timeout = (\d+)$", text, "lock timeout", int),
+        "displayTimeout": scalar(r"^# atlas-display-timeout = (\d+)$", text, "display timeout", int),
+        "suspendTimeout": scalar(r"^# atlas-suspend-timeout = (\d+)$", text, "suspend timeout", int),
+    }
+
+
+def patch_power(text: str, data: dict[str, Any]) -> str:
+    read_power(text)
+    values = {
+        "lock": data.get("lockTimeout"),
+        "display": data.get("displayTimeout"),
+        "suspend": data.get("suspendTimeout"),
+    }
+    for label, value in values.items():
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0 or value > 86400:
+            raise SettingsError(f"Power {label} timeout must be an integer from 0 to 86400 seconds")
+
+    lines = [
+        "# Managed by Atlas Settings. Timeout metadata is kept here so the settings",
+        "# backend can safely round-trip disabled listeners.",
+        f"# atlas-lock-timeout = {values['lock']}",
+        f"# atlas-display-timeout = {values['display']}",
+        f"# atlas-suspend-timeout = {values['suspend']}",
+        "",
+        "general {",
+        "    lock_cmd = pidof hyprlock || hyprlock",
+        "    before_sleep_cmd = loginctl lock-session",
+        "    after_sleep_cmd = hyprctl dispatch dpms on",
+        "}",
+    ]
+    listeners = (
+        (values["lock"], ["    on-timeout = loginctl lock-session"]),
+        (values["display"], ["    on-timeout = hyprctl dispatch dpms off", "    on-resume = hyprctl dispatch dpms on"]),
+        (values["suspend"], ["    on-timeout = systemctl suspend"]),
+    )
+    for timeout, commands in listeners:
+        if timeout == 0:
+            continue
+        lines.extend(["", "listener {", f"    timeout = {timeout}", *commands, "}"])
+    return "\n".join(lines) + "\n"
+
+
+def lua_bool(pattern: str, text: str, label: str) -> bool:
+    return scalar(pattern, text, label, lambda value: value == "true")
+
+
+def read_appearance(text: str) -> dict[str, Any]:
+    directory_matches = list(re.finditer(r'^-- atlas-wallpaper-directory = "((?:\\.|[^\"])*)"$', text, re.MULTILINE))
+    if len(directory_matches) > 1:
+        raise SettingsError("Expected at most one Atlas wallpaper directory setting")
+    wallpaper_directory = decode_quoted(directory_matches[0].group(1)) if directory_matches else ""
+    theme_matches = list(re.finditer(r"^-- atlas-wallpaper-theme = (true|false)$", text, re.MULTILINE))
+    if len(theme_matches) > 1:
+        raise SettingsError("Expected at most one Atlas wallpaper theme setting")
+    wallpaper_theme = theme_matches[0].group(1) == "true" if theme_matches else False
+    sddm_wallpaper = optional_scalar(
+        r"^-- atlas-sddm-wallpaper = (true|false)$", text, False,
+        lambda value: value == "true",
+    )
+    wallpaper_rotation = optional_scalar(
+        r"^-- atlas-wallpaper-rotation = (true|false)$", text, False,
+        lambda value: value == "true",
+    )
+    wallpaper_rotation_source = optional_scalar(
+        r'^-- atlas-wallpaper-rotation-source = "(theme|general)"$', text, "theme",
+    )
+    wallpaper_rotation_interval = optional_scalar(
+        r"^-- atlas-wallpaper-rotation-interval = (\d+)$", text, 900, int,
+    )
+    return {
+        "layout": scalar(r'^\s*layout\s*=\s*"(dwindle|master|scrolling|monocle)"\s*,?', text, "general layout"),
+        "gapsIn": scalar(r"^\s*gaps_in\s*=\s*(\d+)\s*,?", text, "general gaps_in", int),
+        "gapsOut": scalar(r"^\s*gaps_out\s*=\s*(\d+)\s*,?", text, "general gaps_out", int),
+        "borderSize": scalar(r"^\s*border_size\s*=\s*(\d+)\s*,?", text, "general border_size", int),
+        "rounding": scalar(r"^\s*rounding\s*=\s*(\d+)\s*,?", text, "decoration rounding", int),
+        "roundingPower": scalar(r"^\s*rounding_power\s*=\s*(\d+)\s*,?", text, "decoration rounding_power", int),
+        "activeOpacity": scalar(r"^\s*active_opacity\s*=\s*(\d+(?:\.\d+)?)\s*,?", text, "decoration active_opacity", float),
+        "inactiveOpacity": scalar(r"^\s*inactive_opacity\s*=\s*(\d+(?:\.\d+)?)\s*,?", text, "decoration inactive_opacity", float),
+        "fullscreenOpacity": optional_scalar(r"^\s*fullscreen_opacity\s*=\s*(\d+(?:\.\d+)?)\s*,?", text, 1.0, float),
+        "dimInactive": optional_scalar(r"^\s*dim_inactive\s*=\s*(true|false)\s*,?", text, False, lambda value: value == "true"),
+        "dimAround": optional_scalar(r"^\s*dim_around\s*=\s*(\d+(?:\.\d+)?)\s*,?", text, 0.4, float),
+        "dimSpecial": optional_scalar(r"^\s*dim_special\s*=\s*(\d+(?:\.\d+)?)\s*,?", text, 0.2, float),
+        "blurSize": scalar(r"^\s*size\s*=\s*(\d+)\s*,?", text, "blur size", int),
+        "blurPasses": scalar(r"^\s*passes\s*=\s*(\d+)\s*,?", text, "blur passes", int),
+        "blurIgnoreOpacity": optional_scalar(r"^\s*ignore_opacity\s*=\s*(true|false)\s*,?", text, False, lambda value: value == "true"),
+        "blurNoise": optional_scalar(r"^\s*noise\s*=\s*(\d+(?:\.\d+)?)\s*,?", text, 0.0117, float),
+        "blurContrast": optional_scalar(r"^\s*contrast\s*=\s*(\d+(?:\.\d+)?)\s*,?", text, 0.8916, float),
+        "blurBrightness": optional_scalar(r"^\s*brightness\s*=\s*(\d+(?:\.\d+)?)\s*,?", text, 0.8172, float),
+        "blurVibrancy": scalar(r"^\s*vibrancy\s*=\s*(\d+(?:\.\d+)?)\s*,?", text, "blur vibrancy", float),
+        "blurVibrancyDarkness": optional_scalar(r"^\s*vibrancy_darkness\s*=\s*(\d+(?:\.\d+)?)\s*,?", text, 0.0, float),
+        "shadowRange": scalar(r"^\s*range\s*=\s*(\d+)\s*,?", text, "shadow range", int),
+        "shadowRenderPower": scalar(r"^\s*render_power\s*=\s*(\d+)\s*,?", text, "shadow render_power", int),
+        "shadowScale": optional_scalar(r"^\s*scale\s*=\s*(\d+(?:\.\d+)?)\s*,?", text, 1.0, float),
+        "animations": lua_bool(r"\banimations\s*=\s*\{\s*enabled\s*=\s*(true|false)", text, "animations enabled"),
+        "shadows": lua_bool(r"\bshadow\s*=\s*\{\s*enabled\s*=\s*(true|false)", text, "shadow enabled"),
+        "blur": lua_bool(r"\bblur\s*=\s*\{\s*enabled\s*=\s*(true|false)", text, "blur enabled"),
+        "wallpaperDirectory": wallpaper_directory,
+        "wallpaperTheme": wallpaper_theme,
+        "sddmWallpaper": sddm_wallpaper,
+        "wallpaperRotation": wallpaper_rotation,
+        "wallpaperRotationSource": wallpaper_rotation_source,
+        "wallpaperRotationInterval": wallpaper_rotation_interval,
+    }
+
+
+def patch_appearance(text: str, data: dict[str, Any]) -> str:
+    read_appearance(text)
+    layout = data.get("layout")
+    if layout not in ("dwindle", "master", "scrolling", "monocle"):
+        raise SettingsError("Appearance layout must be dwindle, master, scrolling, or monocle")
+    integers = {
+        "gaps_in": (data.get("gapsIn"), 0, 50),
+        "gaps_out": (data.get("gapsOut"), 0, 100),
+        "border_size": (data.get("borderSize"), 0, 10),
+        "rounding": (data.get("rounding"), 0, 30),
+        "rounding_power": (data.get("roundingPower"), 1, 10),
+        "size": (data.get("blurSize"), 1, 40),
+        "passes": (data.get("blurPasses"), 1, 10),
+        "range": (data.get("shadowRange"), 0, 100),
+        "render_power": (data.get("shadowRenderPower"), 1, 4),
+    }
+    for label, (value, minimum, maximum) in integers.items():
+        if not isinstance(value, int) or isinstance(value, bool) or not minimum <= value <= maximum:
+            raise SettingsError(f"Appearance {label} must be an integer from {minimum} to {maximum}")
+    opacities = {
+        "active_opacity": data.get("activeOpacity"),
+        "inactive_opacity": data.get("inactiveOpacity"),
+        "fullscreen_opacity": data.get("fullscreenOpacity"),
+    }
+    for label, value in opacities.items():
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or not 0.1 <= value <= 1:
+            raise SettingsError(f"Appearance {label} must be between 0.1 and 1")
+    dim_inactive = data.get("dimInactive")
+    if not isinstance(dim_inactive, bool):
+        raise SettingsError("Appearance dim_inactive must be true or false")
+    dim_amounts = {
+        "dim_around": data.get("dimAround"),
+        "dim_special": data.get("dimSpecial"),
+    }
+    for label, value in dim_amounts.items():
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or not 0 <= value <= 1:
+            raise SettingsError(f"Appearance {label} must be between 0 and 1")
+    blur_ignore_opacity = data.get("blurIgnoreOpacity")
+    if not isinstance(blur_ignore_opacity, bool):
+        raise SettingsError("Appearance blur ignore_opacity must be true or false")
+    effect_amounts = {
+        "noise": (data.get("blurNoise"), 0, 1),
+        "contrast": (data.get("blurContrast"), 0, 2),
+        "brightness": (data.get("blurBrightness"), 0, 2),
+        "vibrancy": (data.get("blurVibrancy"), 0, 1),
+        "vibrancy_darkness": (data.get("blurVibrancyDarkness"), 0, 1),
+        "scale": (data.get("shadowScale"), 0, 1),
+    }
+    for label, (value, minimum, maximum) in effect_amounts.items():
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or not minimum <= value <= maximum:
+            raise SettingsError(f"Appearance {label} must be between {minimum} and {maximum}")
+    booleans = {
+        "animations": data.get("animations"),
+        "shadow": data.get("shadows"),
+        "blur": data.get("blur"),
+    }
+    if any(not isinstance(value, bool) for value in booleans.values()):
+        raise SettingsError("Animation, shadow, and blur settings must be true or false")
+    wallpaper_directory = data.get("wallpaperDirectory")
+    if not isinstance(wallpaper_directory, str) or "\n" in wallpaper_directory or "\r" in wallpaper_directory:
+        raise SettingsError("Wallpaper directory must be a single-line path")
+    if wallpaper_directory and not os.path.isabs(wallpaper_directory):
+        raise SettingsError("Wallpaper directory must be an absolute path")
+    wallpaper_theme = data.get("wallpaperTheme")
+    if not isinstance(wallpaper_theme, bool):
+        raise SettingsError("Wallpaper-created theme mode must be true or false")
+    sddm_wallpaper = data.get("sddmWallpaper")
+    if not isinstance(sddm_wallpaper, bool):
+        raise SettingsError("SDDM wallpaper synchronization must be true or false")
+    wallpaper_rotation = data.get("wallpaperRotation")
+    if not isinstance(wallpaper_rotation, bool):
+        raise SettingsError("Wallpaper rotation must be true or false")
+    wallpaper_rotation_source = data.get("wallpaperRotationSource")
+    if wallpaper_rotation_source not in ("theme", "general"):
+        raise SettingsError("Wallpaper rotation source must be theme or general")
+    wallpaper_rotation_interval = data.get("wallpaperRotationInterval")
+    if (isinstance(wallpaper_rotation_interval, bool)
+            or not isinstance(wallpaper_rotation_interval, int)
+            or not 60 <= wallpaper_rotation_interval <= 86400):
+        raise SettingsError("Wallpaper rotation interval must be between 60 and 86400 seconds")
+
+    if not re.search(r"^\s*fullscreen_opacity\s*=", text, re.MULTILINE):
+        text, count = re.subn(
+            r"(^(\s*)inactive_opacity\s*=\s*\d+(?:\.\d+)?\s*,?\s*$)",
+            lambda found: found.group(1) + "\n" + found.group(2) + "fullscreen_opacity = 1.0,",
+            text,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if count != 1:
+            raise SettingsError("Cannot safely add fullscreen opacity")
+
+    missing_dim_lines = []
+    if not re.search(r"^\s*dim_inactive\s*=", text, re.MULTILINE):
+        missing_dim_lines.append("dim_inactive = false,")
+    if not re.search(r"^\s*dim_around\s*=", text, re.MULTILINE):
+        missing_dim_lines.append("dim_around = 0.4,")
+    if not re.search(r"^\s*dim_special\s*=", text, re.MULTILINE):
+        missing_dim_lines.append("dim_special = 0.2,")
+    if missing_dim_lines:
+        text, count = re.subn(
+            r"(^(\s*)fullscreen_opacity\s*=\s*\d+(?:\.\d+)?\s*,?\s*$)",
+            lambda found: found.group(1) + "\n" + "\n".join(
+                found.group(2) + line for line in missing_dim_lines
+            ),
+            text,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if count != 1:
+            raise SettingsError("Cannot safely add window dimming settings")
+
+    missing_blur_lines = []
+    blur_defaults = (
+        ("ignore_opacity", "false"),
+        ("noise", "0.0117"),
+        ("contrast", "0.8916"),
+        ("brightness", "0.8172"),
+        ("vibrancy_darkness", "0.0"),
+    )
+    for key, default in blur_defaults:
+        if not re.search(rf"^\s*{key}\s*=", text, re.MULTILINE):
+            missing_blur_lines.append(f"{key} = {default},")
+    if missing_blur_lines:
+        text, count = re.subn(
+            r"(^(\s*)passes\s*=\s*\d+\s*,?\s*$)",
+            lambda found: found.group(1) + "\n" + "\n".join(
+                found.group(2) + line for line in missing_blur_lines
+            ),
+            text,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if count != 1:
+            raise SettingsError("Cannot safely add blur settings")
+
+    if not re.search(r"^\s*scale\s*=", text, re.MULTILINE):
+        text, count = re.subn(
+            r"(^(\s*)render_power\s*=\s*\d+\s*,?\s*$)",
+            lambda found: found.group(1) + "\n" + found.group(2) + "scale = 1.0,",
+            text,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if count != 1:
+            raise SettingsError("Cannot safely add shadow scale")
+
+    replacements = {
+        r'(^\s*layout\s*=\s*)"(?:\\.|[^\"])*"': quoted(layout),
+        r"(^\s*gaps_in\s*=\s*)\d+": str(integers["gaps_in"][0]),
+        r"(^\s*gaps_out\s*=\s*)\d+": str(integers["gaps_out"][0]),
+        r"(^\s*border_size\s*=\s*)\d+": str(integers["border_size"][0]),
+        r"(^\s*rounding\s*=\s*)\d+": str(integers["rounding"][0]),
+        r"(^\s*rounding_power\s*=\s*)\d+": str(integers["rounding_power"][0]),
+        r"(^\s*active_opacity\s*=\s*)\d+(?:\.\d+)?": f"{float(opacities['active_opacity']):.2f}".rstrip("0").rstrip("."),
+        r"(^\s*inactive_opacity\s*=\s*)\d+(?:\.\d+)?": f"{float(opacities['inactive_opacity']):.2f}".rstrip("0").rstrip("."),
+        r"(^\s*fullscreen_opacity\s*=\s*)\d+(?:\.\d+)?": f"{float(opacities['fullscreen_opacity']):.2f}".rstrip("0").rstrip("."),
+        r"(^\s*dim_inactive\s*=\s*)(?:true|false)": "true" if dim_inactive else "false",
+        r"(^\s*dim_around\s*=\s*)\d+(?:\.\d+)?": f"{float(dim_amounts['dim_around']):.2f}".rstrip("0").rstrip("."),
+        r"(^\s*dim_special\s*=\s*)\d+(?:\.\d+)?": f"{float(dim_amounts['dim_special']):.2f}".rstrip("0").rstrip("."),
+        r"(^\s*size\s*=\s*)\d+": str(integers["size"][0]),
+        r"(^\s*passes\s*=\s*)\d+": str(integers["passes"][0]),
+        r"(^\s*ignore_opacity\s*=\s*)(?:true|false)": "true" if blur_ignore_opacity else "false",
+        r"(^\s*noise\s*=\s*)\d+(?:\.\d+)?": f"{float(effect_amounts['noise'][0]):.4f}".rstrip("0").rstrip("."),
+        r"(^\s*contrast\s*=\s*)\d+(?:\.\d+)?": f"{float(effect_amounts['contrast'][0]):.4f}".rstrip("0").rstrip("."),
+        r"(^\s*brightness\s*=\s*)\d+(?:\.\d+)?": f"{float(effect_amounts['brightness'][0]):.4f}".rstrip("0").rstrip("."),
+        r"(^\s*vibrancy\s*=\s*)\d+(?:\.\d+)?": f"{float(effect_amounts['vibrancy'][0]):.4f}".rstrip("0").rstrip("."),
+        r"(^\s*vibrancy_darkness\s*=\s*)\d+(?:\.\d+)?": f"{float(effect_amounts['vibrancy_darkness'][0]):.4f}".rstrip("0").rstrip("."),
+        r"(^\s*range\s*=\s*)\d+": str(integers["range"][0]),
+        r"(^\s*render_power\s*=\s*)\d+": str(integers["render_power"][0]),
+        r"(^\s*scale\s*=\s*)\d+(?:\.\d+)?": f"{float(effect_amounts['scale'][0]):.2f}".rstrip("0").rstrip("."),
+    }
+    for pattern, value in replacements.items():
+        text, count = re.subn(pattern, lambda found, v=value: found.group(1) + v, text, flags=re.MULTILINE)
+        if count != 1:
+            raise SettingsError("Cannot safely patch the canonical Hyprland appearance settings")
+    for block, value in booleans.items():
+        pattern = rf"(\b{block}\s*=\s*\{{\s*enabled\s*=\s*)(?:true|false)"
+        text, count = re.subn(pattern, lambda found, v=value: found.group(1) + ("true" if v else "false"), text, flags=re.DOTALL)
+        if count != 1:
+            raise SettingsError(f"Cannot safely patch appearance {block} setting")
+    directory_line = "-- atlas-wallpaper-directory = " + quoted(wallpaper_directory)
+    directory_pattern = r'^-- atlas-wallpaper-directory = "(?:\\.|[^\"])*"$'
+    if re.search(directory_pattern, text, re.MULTILINE):
+        text = re.sub(directory_pattern, directory_line, text, count=1, flags=re.MULTILINE)
+    else:
+        text = directory_line + "\n\n" + text
+    theme_line = "-- atlas-wallpaper-theme = " + ("true" if wallpaper_theme else "false")
+    theme_pattern = r"^-- atlas-wallpaper-theme = (?:true|false)$"
+    if re.search(theme_pattern, text, re.MULTILINE):
+        text = re.sub(theme_pattern, theme_line, text, count=1, flags=re.MULTILINE)
+    else:
+        text = theme_line + "\n" + text
+    sddm_line = "-- atlas-sddm-wallpaper = " + ("true" if sddm_wallpaper else "false")
+    sddm_pattern = r"^-- atlas-sddm-wallpaper = (?:true|false)$"
+    if re.search(sddm_pattern, text, re.MULTILINE):
+        text = re.sub(sddm_pattern, sddm_line, text, count=1, flags=re.MULTILINE)
+    else:
+        text = sddm_line + "\n" + text
+    rotation_settings = (
+        ("atlas-wallpaper-rotation", "true" if wallpaper_rotation else "false", r"(?:true|false)"),
+        ("atlas-wallpaper-rotation-source", quoted(wallpaper_rotation_source), r'"(?:theme|general)"'),
+        ("atlas-wallpaper-rotation-interval", str(wallpaper_rotation_interval), r"\d+"),
+    )
+    for key, value, value_pattern in rotation_settings:
+        line = f"-- {key} = {value}"
+        pattern = rf"^-- {key} = {value_pattern}$"
+        if re.search(pattern, text, re.MULTILINE):
+            text = re.sub(pattern, line, text, count=1, flags=re.MULTILINE)
+        else:
+            text = line + "\n" + text
+    return text
+
+
+READERS = {
+    "system": read_system,
+    "displays": read_displays,
+    "input": read_input,
+    "power": read_power,
+    "appearance": read_appearance,
+}
+PATCHERS = {
+    "system": patch_system,
+    "displays": patch_displays,
+    "input": patch_input,
+    "power": patch_power,
+    "appearance": patch_appearance,
+}
 
 
 def detected_monitors() -> list[dict[str, Any]]:
     try:
         result = subprocess.run(["hyprctl", "monitors", "all", "-j"], check=True, text=True, capture_output=True, timeout=3)
         monitors = json.loads(result.stdout)
-        return [{"name": item.get("name", ""), "description": item.get("description", ""), "modes": item.get("availableModes", [])} for item in monitors]
+        return [{
+            "name": item.get("name", ""),
+            "description": item.get("description", ""),
+            "modes": item.get("availableModes", []),
+            "x": item.get("x", 0),
+            "y": item.get("y", 0),
+            "width": item.get("width", 1920),
+            "height": item.get("height", 1080),
+            "scale": item.get("scale", 1),
+            "focused": item.get("focused", False),
+        } for item in monitors]
     except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
         return []
 
 
+def detected_fonts() -> list[str]:
+    try:
+        result = subprocess.run(
+            ["fc-list", ":spacing=100", "family"], check=True, text=True,
+            capture_output=True, timeout=5,
+        )
+        families: set[str] = set()
+        for line in result.stdout.splitlines():
+            for family in line.split(","):
+                cleaned = family.strip()
+                if cleaned:
+                    families.add(cleaned)
+        all_fonts = subprocess.run(
+            ["fc-list", ":", "family"], check=True, text=True,
+            capture_output=True, timeout=5,
+        )
+        terminal_name = re.compile(
+            r"(?:mono|code|courier|consolas|hack|iosevka|cascadia|terminus|"
+            r"inconsolata|monaspace|unifont|fixed)", re.IGNORECASE,
+        )
+        for line in all_fonts.stdout.splitlines():
+            for family in line.split(","):
+                cleaned = family.strip()
+                if cleaned and terminal_name.search(cleaned):
+                    families.add(cleaned)
+        return sorted(families, key=str.casefold)
+    except (OSError, subprocess.SubprocessError):
+        return ["FiraCode Nerd Font Mono", "Noto Sans Mono", "Noto Serif"]
+
+
+def detected_cursor_themes() -> list[str]:
+    data_dirs = os.environ.get(
+        "XDG_DATA_DIRS",
+        "/usr/local/share:/usr/share:/run/current-system/sw/share",
+    ).split(":")
+    data_dirs.extend([
+        str(home_dir() / ".local/share"),
+        str(home_dir() / ".icons"),
+        str(home_dir() / ".nix-profile/share"),
+    ])
+    themes: set[str] = set()
+    for data_dir in data_dirs:
+        icons = Path(data_dir) if data_dir.endswith("icons") else Path(data_dir) / "icons"
+        try:
+            for theme in icons.iterdir():
+                if (theme / "cursors").is_dir():
+                    themes.add(theme.name)
+        except OSError:
+            continue
+    preferred = ["Adwaita", "Bibata-Modern-Classic", "Bibata-Modern-Ice", "Bibata-Modern-Amber"]
+    return sorted(themes, key=lambda name: (
+        preferred.index(name) if name in preferred else len(preferred),
+        name.casefold(),
+    ))
+
+
 def read_all() -> dict[str, Any]:
-    result: dict[str, Any] = {"ok": True, "sections": {}, "errors": {}, "detectedMonitors": detected_monitors()}
+    result: dict[str, Any] = {
+        "ok": True,
+        "sections": {},
+        "errors": {},
+        "detectedMonitors": detected_monitors(),
+        "detectedFonts": detected_fonts(),
+        "detectedCursorThemes": detected_cursor_themes(),
+    }
     for section, path in paths().items():
         try:
-            result["sections"][section] = READERS[section](read_text(path))
+            result["sections"][section] = READERS[section](read_section_text(section, path))
         except SettingsError as error:
             result["errors"][section] = {"path": str(path), "message": str(error)}
     marker = Path(os.environ.get("XDG_STATE_HOME", str(home_dir() / ".local/state"))) / "atlas/rebuild-required"
@@ -198,10 +717,80 @@ def rebuild_required() -> bool:
     return marker.exists()
 
 
+def desktop_icon(store_paths: list[str]) -> str:
+    """Resolve the best desktop icon shipped by a profile package."""
+    icon_names: list[str] = []
+    absolute_icons: list[Path] = []
+    for store_path in store_paths:
+        applications = Path(store_path) / "share/applications"
+        try:
+            desktop_files = sorted(applications.glob("*.desktop"))
+        except OSError:
+            desktop_files = []
+        for desktop_file in desktop_files:
+            try:
+                for line in desktop_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                    if line.startswith("Icon="):
+                        value = line[5:].strip()
+                        if os.path.isabs(value):
+                            absolute_icons.append(Path(value))
+                        elif value:
+                            icon_names.append(value)
+                        break
+            except OSError:
+                continue
+    for icon in absolute_icons:
+        if icon.is_file():
+            return str(icon)
+    candidates: list[Path] = []
+    for store_path in store_paths:
+        share = Path(store_path) / "share"
+        for icon_name in icon_names:
+            stem = Path(icon_name).stem
+            candidates.extend(share.glob(f"icons/*/*/apps/{stem}.png"))
+            candidates.extend(share.glob(f"icons/*/*/apps/{stem}.svg"))
+            candidates.extend(share.glob(f"pixmaps/{stem}.png"))
+            candidates.extend(share.glob(f"pixmaps/{stem}.svg"))
+    if not candidates:
+        return ""
+    def icon_score(path: Path) -> tuple[int, int]:
+        size_match = re.search(r"/(\d+)x\d+/", str(path))
+        size = int(size_match.group(1)) if size_match else 64
+        return (abs(size - 64), 0 if path.suffix == ".png" else 1)
+    return str(min(candidates, key=icon_score))
+
+
+def installed_applications() -> dict[str, Any]:
+    try:
+        result = subprocess.run(
+            ["nix", "profile", "list", "--json"], check=True, text=True,
+            capture_output=True, timeout=10,
+        )
+        profile = json.loads(result.stdout)
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError) as error:
+        raise SettingsError(f"Cannot read the user Nix profile: {error}") from error
+    applications = []
+    for profile_name, element in profile.get("elements", {}).items():
+        attribute = str(element.get("attrPath", ""))
+        attribute = re.sub(r"^(?:legacyPackages|packages)\.[^.]+\.", "", attribute)
+        if not attribute:
+            continue
+        store_paths = [str(path) for path in element.get("storePaths") or []]
+        applications.append({
+            "attr": attribute,
+            "profileName": profile_name,
+            "icon": desktop_icon(store_paths),
+        })
+    applications.sort(key=lambda item: item["attr"].casefold())
+    return {"ok": True, "applications": applications}
+
+
 def atomic_write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     backup = path.with_name(path.name + ".atlas-settings.backup")
-    shutil.copy2(path, backup)
+    existed = path.exists()
+    if existed:
+        shutil.copy2(path, backup)
     descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     temporary = Path(temporary_name)
     try:
@@ -209,10 +798,164 @@ def atomic_write(path: Path, content: str) -> None:
             handle.write(content)
             handle.flush()
             os.fsync(handle.fileno())
-        shutil.copymode(path, temporary)
+        if existed:
+            shutil.copymode(path, temporary)
+        else:
+            temporary.chmod(0o644)
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+HYPRLAND_SECTIONS = ("displays", "input", "appearance")
+
+
+def preview_state_path(section: str) -> Path:
+    state_home = Path(os.environ.get(
+        "XDG_STATE_HOME", str(home_dir() / ".local/state")
+    ))
+    return state_home / "atlas/settings-preview" / f"{section}.json"
+
+
+def write_without_backup(path: Path, content: str) -> None:
+    """Atomically replace a previewed file without changing its saved backup."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.preview-", dir=path.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if path.exists():
+            shutil.copymode(path, temporary)
+        else:
+            temporary.chmod(0o644)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def read_preview_state(section: str) -> dict[str, Any] | None:
+    state_path = preview_state_path(section)
+    if not state_path.exists():
+        return None
+    try:
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise SettingsError(f"Cannot read the {section} preview transaction: {error}") from error
+    if not isinstance(state, dict) or not isinstance(state.get("content"), str) \
+            or not isinstance(state.get("existed"), bool):
+        raise SettingsError(f"The {section} preview transaction is invalid")
+    return state
+
+
+def create_preview_state(section: str, path: Path) -> dict[str, Any]:
+    state = {"existed": path.exists(), "content": read_section_text(section, path)}
+    state_path = preview_state_path(section)
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{section}.", dir=state_path.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(state, handle, separators=(",", ":"))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, state_path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return state
+
+
+def reload_hyprland(path: Path, previous: str, previous_existed: bool) -> None:
+    if os.environ.get("ATLAS_SETTINGS_SKIP_HYPR_RELOAD") == "1" or not shutil.which("hyprctl"):
+        return
+    reload_result = subprocess.run(["hyprctl", "reload"], text=True, capture_output=True)
+    errors_result = subprocess.run(["hyprctl", "configerrors"], text=True, capture_output=True)
+    errors = errors_result.stdout.strip()
+    if reload_result.returncode or errors_result.returncode or errors:
+        if previous_existed:
+            write_without_backup(path, previous)
+        else:
+            path.unlink(missing_ok=True)
+        subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        raise SettingsError(errors or reload_result.stderr.strip()
+                            or "Hyprland rejected the configuration; the previous settings were restored")
+
+
+def preview(section: str, data: dict[str, Any]) -> dict[str, Any]:
+    if section not in HYPRLAND_SECTIONS:
+        raise SettingsError(f"The {section} section cannot be previewed")
+    path = paths()[section]
+    state = read_preview_state(section) or create_preview_state(section, path)
+    READERS[section](state["content"])
+    candidate = PATCHERS[section](state["content"], data)
+    previous_existed = path.exists()
+    previous = read_section_text(section, path)
+    if candidate != previous:
+        write_without_backup(path, candidate)
+        reload_hyprland(path, previous, previous_existed)
+    return {"ok": True, "changed": candidate != state["content"], "section": section}
+
+
+def rollback(section: str) -> dict[str, Any]:
+    if section not in HYPRLAND_SECTIONS:
+        raise SettingsError(f"The {section} section cannot be rolled back")
+    state = read_preview_state(section)
+    if state is None:
+        return {"ok": True, "changed": False, "section": section}
+    path = paths()[section]
+    previous_existed = path.exists()
+    previous = read_section_text(section, path)
+    if state["existed"]:
+        write_without_backup(path, state["content"])
+    else:
+        path.unlink(missing_ok=True)
+    try:
+        reload_hyprland(path, previous, previous_existed)
+    except SettingsError:
+        raise
+    preview_state_path(section).unlink(missing_ok=True)
+    return {"ok": True, "changed": True, "section": section}
+
+
+def rollback_all() -> dict[str, Any]:
+    changed = False
+    for section in HYPRLAND_SECTIONS:
+        changed = rollback(section)["changed"] or changed
+    return {"ok": True, "changed": changed}
+
+
+def sync_kitty_font(font_family: str) -> bool:
+    kitty_path = atlas_path() / "config/kitty/kitty.conf"
+    if not kitty_path.exists():
+        return False
+    original = kitty_path.read_text(encoding="utf-8")
+    candidate, count = re.subn(
+        r"^\s*font_family\s+.*$",
+        f"font_family      {font_family}",
+        original,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    if count != 1:
+        raise SettingsError("Cannot update Kitty font; font_family is missing")
+    if candidate == original:
+        return False
+    atomic_write(kitty_path, candidate)
+    return True
+
+
+def apply_cursor_theme(theme: str, size: int) -> bool:
+    if not shutil.which("hyprctl") or not os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        return False
+    result = subprocess.run(
+        ["hyprctl", "setcursor", theme, str(size)],
+        text=True, capture_output=True, timeout=5,
+    )
+    if result.returncode:
+        raise SettingsError(result.stderr.strip() or result.stdout.strip() or "Hyprland could not apply the cursor")
+    return True
 
 
 def nix_validate(candidate: str) -> None:
@@ -239,15 +982,35 @@ def save(section: str, data: dict[str, Any]) -> dict[str, Any]:
     if section not in PATCHERS:
         raise SettingsError(f"Unknown settings section: {section}")
     path = paths()[section]
-    original = read_text(path)
+    path_existed = path.exists()
+    preview_state = read_preview_state(section) if section in HYPRLAND_SECTIONS else None
+    original = preview_state["content"] if preview_state is not None else read_section_text(section, path)
     READERS[section](original)
     candidate = PATCHERS[section](original, data)
     if candidate == original:
-        return {"ok": True, "changed": False, "section": section}
+        if preview_state is not None:
+            if preview_state["existed"]:
+                write_without_backup(path, original)
+            else:
+                path.unlink(missing_ok=True)
+            preview_state_path(section).unlink(missing_ok=True)
+            if shutil.which("hyprctl"):
+                subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        kitty_changed = section == "system" and sync_kitty_font(data["fontFamily"])
+        cursor_changed = section == "system" and apply_cursor_theme(data["cursorTheme"], data["cursorSize"])
+        return {"ok": True, "changed": kitty_changed or cursor_changed, "section": section}
     if section == "system":
         nix_validate(candidate)
-    atomic_write(path, candidate)
+    if preview_state is not None:
+        backup = path.with_name(path.name + ".atlas-settings.backup")
+        if preview_state["existed"]:
+            backup.write_text(original, encoding="utf-8")
+        write_without_backup(path, candidate)
+    else:
+        atomic_write(path, candidate)
     if section == "system":
+        sync_kitty_font(data["fontFamily"])
+        apply_cursor_theme(data["cursorTheme"], data["cursorSize"])
         marker = Path(os.environ.get("XDG_STATE_HOME", str(home_dir() / ".local/state"))) / "atlas/rebuild-required"
         marker.parent.mkdir(parents=True, exist_ok=True)
         marker.write_text("Settings changed; run atlas rebuild.\n", encoding="utf-8")
@@ -257,9 +1020,28 @@ def save(section: str, data: dict[str, Any]) -> dict[str, Any]:
         errors = errors_result.stdout.strip()
         if reload_result.returncode or errors_result.returncode or errors:
             backup = path.with_name(path.name + ".atlas-settings.backup")
-            shutil.copy2(backup, path)
+            if preview_state is not None:
+                if preview_state["existed"]:
+                    write_without_backup(path, original)
+                else:
+                    path.unlink(missing_ok=True)
+            elif path_existed:
+                shutil.copy2(backup, path)
+            else:
+                path.unlink(missing_ok=True)
             subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             raise SettingsError(errors or reload_result.stderr.strip() or "Hyprland rejected the configuration; the backup was restored")
+        if section == "power" and shutil.which("hypridle"):
+            if shutil.which("pkill"):
+                subprocess.run(["pkill", "-x", "hypridle"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.Popen(
+                ["hypridle"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+    if preview_state is not None:
+        preview_state_path(section).unlink(missing_ok=True)
     return {"ok": True, "changed": True, "section": section, "rebuildRequired": section == "system"}
 
 
@@ -273,17 +1055,67 @@ def payload() -> dict[str, Any]:
     return value
 
 
+def keyboard_catalog() -> dict[str, Any]:
+    candidates = []
+    if os.environ.get("XKB_CONFIG_ROOT"):
+        candidates.append(Path(os.environ["XKB_CONFIG_ROOT"]) / "rules/evdev.xml")
+    candidates.extend(Path(prefix) / "share/X11/xkb/rules/evdev.xml" for prefix in (
+        "/run/current-system/sw", str(home_dir() / ".nix-profile"),
+        f"/etc/profiles/per-user/{home_dir().name}", "/usr", "/usr/local",
+    ))
+    candidates.append(Path("/etc/X11/xkb/rules/evdev.xml"))
+    # NixOS may keep the XKB data solely in a package dependency.
+    store = Path("/nix/store")
+    if not any(path.is_file() for path in candidates) and store.is_dir():
+        candidates.extend(sorted(store.glob("*-xkeyboard-config-*/share/X11/xkb/rules/evdev.xml"),
+            key=lambda path: tuple(int(part) for part in re.findall(r"\d+", path.parts[3].split("-xkeyboard-config-", 1)[-1])),
+            reverse=True))
+    registry = next((path for path in candidates if path.is_file()), None)
+    if registry is None:
+        raise SettingsError("Keyboard layout catalog unavailable; use advanced keyboard codes")
+    try:
+        document = ET.parse(registry)
+    except (OSError, ET.ParseError) as error:
+        raise SettingsError(f"Cannot read keyboard layout catalog: {error}") from error
+    layouts = []
+    for layout in document.findall("./layoutList/layout"):
+        code = layout.findtext("configItem/name", "")
+        if not code:
+            continue
+        variants = [{"code": "", "label": "Default"}]
+        for variant in layout.findall("variantList/variant"):
+            name = variant.findtext("configItem/name", "")
+            if name:
+                variants.append({"code": name, "label": variant.findtext("configItem/description", name)})
+        layouts.append({"code": code, "label": layout.findtext("configItem/description", code),
+            "variants": [variants[0]] + sorted(variants[1:], key=lambda value: value["label"].casefold())})
+    if not layouts:
+        raise SettingsError("Keyboard layout catalog is empty; use advanced keyboard codes")
+    return {"ok": True, "layouts": sorted(layouts, key=lambda value: value["label"].casefold())}
+
+
 def main() -> int:
     try:
         command = sys.argv[1] if len(sys.argv) > 1 else ""
         if command == "read" and len(sys.argv) == 2:
+            rollback_all()
             result = read_all()
+        elif command == "keyboard-catalog" and len(sys.argv) == 2:
+            result = keyboard_catalog()
+        elif command == "applications" and len(sys.argv) == 2:
+            result = installed_applications()
         elif command == "status" and len(sys.argv) == 2:
             result = {"ok": True, "rebuildRequired": rebuild_required()}
         elif command == "save" and len(sys.argv) == 3:
             result = save(sys.argv[2], payload())
+        elif command == "preview" and len(sys.argv) == 3:
+            result = preview(sys.argv[2], payload())
+        elif command == "rollback" and len(sys.argv) == 3:
+            result = rollback(sys.argv[2])
+        elif command == "rollback-all" and len(sys.argv) == 2:
+            result = rollback_all()
         else:
-            raise SettingsError("Usage: atlas-settings read | atlas-settings status | atlas-settings save <section>")
+            raise SettingsError("Usage: atlas-settings read | keyboard-catalog | applications | status | save <section> | preview <section> | rollback <section> | rollback-all")
         print(json.dumps(result, separators=(",", ":")))
         return 0
     except SettingsError as error:

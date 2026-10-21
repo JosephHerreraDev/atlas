@@ -11,7 +11,8 @@ Usage:
   atlas config check
   atlas settings read
   atlas settings status
-  atlas settings save <system|displays>
+  atlas settings applications
+  atlas settings save <system|appearance|input|power|displays>
   atlas rebuild
   atlas rollback
   atlas doctor
@@ -77,7 +78,7 @@ check_config() {
 doctor() {
   local failures=0 command_name
   printf 'Atlas path: %s\nConfig: %s\n' "$ATLAS_PATH" "$ATLAS_CONFIG"
-  for command_name in nix nixos-rebuild rsync hyprctl qs theme-dir theme-set wallpaper-set; do
+  for command_name in nix nixos-rebuild rsync hyprctl qs matugen theme-dir theme-set wallpaper-set wallpaper-theme-set; do
     if ! command -v "$command_name" >/dev/null; then
       printf 'MISSING: %s\n' "$command_name"
       failures=$((failures + 1))
