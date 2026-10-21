@@ -10,18 +10,28 @@ Item {
   required property bool shown
   property real gap: 8
   property real maximumWidth: 320
+  property bool openAbove: false
+  property string edge: openAbove ? "bottom" : "top"
 
   PopupWindow {
     id: popup
 
     anchor {
       item: root.target
-      rect.x: Math.round(root.target.width / 2)
-      rect.y: root.target.height + root.gap
+      rect.x: root.edge === "left" ? root.target.width + root.gap
+        : root.edge === "right" ? -root.gap
+        : Math.round(root.target.width / 2)
+      rect.y: root.edge === "left" || root.edge === "right"
+        ? Math.round(root.target.height / 2)
+        : root.edge === "bottom" ? -root.gap : root.target.height + root.gap
       rect.width: 1
       rect.height: 1
-      edges: Edges.Top
-      gravity: Edges.Bottom
+      edges: root.edge === "left" ? Edges.Left
+        : root.edge === "right" ? Edges.Right
+        : root.edge === "bottom" ? Edges.Bottom : Edges.Top
+      gravity: root.edge === "left" ? Edges.Right
+        : root.edge === "right" ? Edges.Left
+        : root.edge === "bottom" ? Edges.Top : Edges.Bottom
     }
 
     implicitWidth: tooltipText.width + 12

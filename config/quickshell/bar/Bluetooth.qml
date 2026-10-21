@@ -10,6 +10,8 @@ import "../shared/"
 IconImage {
   id: root
 
+  property bool highlighted: false
+
   readonly property var adapter: BluetoothService.Bluetooth.defaultAdapter
   readonly property var connectedDevices: {
     const devices = []
@@ -40,6 +42,8 @@ IconImage {
     brightness: 1
     colorization: 1
     colorizationColor: {
+      if (root.highlighted)
+        return Theme.accent
       if (!root.adapter || !root.adapter.enabled)
         return Theme.error
       if (root.connectedDevices.length > 0)

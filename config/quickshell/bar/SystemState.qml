@@ -74,6 +74,10 @@ Singleton {
       bluetoothScanRequested = false
     }
     updateWifiScanning()
+    if (panelOwner !== null && ownerSection === internetSection)
+      wifiScanRefreshTimer.restart()
+    else
+      wifiScanRefreshTimer.stop()
     updateBluetoothDiscovery()
   }
 
@@ -153,6 +157,24 @@ Singleton {
       if (device.type === DeviceType.Wifi)
         device.scannerEnabled = enabled
     }
+  }
+
+  Connections {
+    target: Networking.devices
+
+    function onValuesChanged(): void {
+      root.updateWifiScanning()
+      if (root.panelOwner !== null
+          && root.ownerSection === root.internetSection)
+        wifiScanRefreshTimer.restart()
+    }
+  }
+
+  Timer {
+    id: wifiScanRefreshTimer
+    interval: 250
+    repeat: false
+    onTriggered: root.updateWifiScanning()
   }
 
   function connectNetwork(network): void {

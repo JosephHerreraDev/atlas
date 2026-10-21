@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import "../"
+import "../bar" as Bar
 
 Scope {
   id: root
@@ -74,7 +75,10 @@ Scope {
     if (!path)
       return
     close()
-    Quickshell.execDetached(["wallpaper-set", path])
+    const command = root.mode === "theme"
+      ? ["wallpaper-set", "--no-theme", path]
+      : ["wallpaper-set", path]
+    Quickshell.execDetached(command)
   }
 
   Process {
@@ -134,7 +138,8 @@ Scope {
 
       Rectangle {
         anchors.fill: parent
-        color: "#66000000"
+        // Keep the desktop and its current wallpaper legible behind the picker.
+        color: "#24000000"
         opacity: root.opened ? 1 : 0
 
         Behavior on opacity {
@@ -149,13 +154,20 @@ Scope {
 
       Rectangle {
         id: panel
-        anchors {
-          horizontalCenter: parent.horizontalCenter
-          bottom: parent.bottom
-          bottomMargin: 16
-        }
-        width: Math.min(820, window.width - 48)
-        height: Math.min(300, window.height * 0.34)
+        readonly property string horizontalPlacement: Placement.horizontal(Placement.wallpaperSelector)
+        readonly property string verticalPlacement: Placement.vertical(Placement.wallpaperSelector)
+        readonly property bool sidePlacement: horizontalPlacement !== "center"
+        width: sidePlacement
+          ? Math.min(440, window.width - 48)
+          : Math.min(920, window.width - 48)
+        height: sidePlacement
+          ? Math.min(680, window.height - 48 - Bar.BarStyle.topClearance
+            - Bar.BarStyle.bottomClearance)
+          : Math.min(460, window.height * 0.52)
+        x: Placement.itemX(Placement.wallpaperSelector, window.width, width, Placement.edgeMargin)
+        y: Placement.itemY(Placement.wallpaperSelector, window.height, height,
+          Placement.edgeMargin + Bar.BarStyle.topClearance,
+          Placement.edgeMargin + Bar.BarStyle.bottomClearance)
         opacity: root.opened ? 1 : 0
         scale: root.opened ? 1 : 0.97
         radius: Theme.radiusLg
@@ -171,9 +183,10 @@ Scope {
           y: root.opened ? 0 : 18
 
           Behavior on y {
-            NumberAnimation {
-              duration: root.animationDuration
-              easing.type: Easing.OutCubic
+            SpringAnimation {
+              spring: Theme.motionSpring
+              damping: Theme.motionDamping
+              epsilon: Theme.motionEpsilon
             }
           }
         }
@@ -186,9 +199,10 @@ Scope {
         }
 
         Behavior on scale {
-          NumberAnimation {
-            duration: root.animationDuration
-            easing.type: Easing.OutCubic
+          SpringAnimation {
+            spring: Theme.motionSpring
+            damping: Theme.motionDamping
+            epsilon: Theme.motionEpsilon
           }
         }
 
@@ -197,15 +211,16 @@ Scope {
         ColumnLayout {
           id: content
           anchors.fill: parent
-          spacing: Theme.spaceSm + Theme.spaceXxs
+          spacing: Theme.spaceSm
           opacity: root.opened ? 1 : 0
 
           transform: Translate {
             y: root.opened ? 0 : 6
             Behavior on y {
-              NumberAnimation {
-                duration: root.animationDuration + 40
-                easing.type: Easing.OutCubic
+              SpringAnimation {
+                spring: Theme.motionSpring
+                damping: Theme.motionDamping
+                epsilon: Theme.motionEpsilon
               }
             }
           }
@@ -231,8 +246,8 @@ Scope {
             }
             Text {
               text: root.wallpapers.length + " available"
-              color: Theme.foreground
-              font.pixelSize: Theme.fontBody
+              color: Theme.foregroundMuted
+              font.pixelSize: Theme.fontCaption
             }
           }
 
@@ -246,37 +261,31 @@ Scope {
             verticalAlignment: Text.AlignVCenter
           }
 
-          ListView {
+          GridView {
             id: wallpaperList
-            readonly property real cardWidth: Math.min(560, width * 0.68)
-            readonly property real sidePeek: Math.max(0, (width - cardWidth) / 2)
+            readonly property int columns: panel.sidePlacement
+              ? (width >= 390 ? 2 : 1)
+              : Math.max(2, Math.min(4, Math.floor(width / 190)))
+            readonly property real gridGap: Theme.spaceSm
+            readonly property real cardWidth: Math.floor(
+              (width - Theme.spaceMd * 2 - gridGap * (columns - 1)) / columns)
+            readonly property real cardHeight: Math.round(cardWidth * 0.625)
 
             visible: root.wallpapers.length > 0
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.leftMargin: Theme.spaceMd
+            Layout.rightMargin: Theme.spaceMd
+            Layout.bottomMargin: Theme.spaceMd
             clip: true
             focus: true
-            orientation: ListView.Horizontal
             model: root.wallpapers
             currentIndex: root.selectedIndex
-            spacing: Theme.spaceSm + Theme.spaceXxs
+            cellWidth: cardWidth + gridGap
+            cellHeight: cardHeight + gridGap
             boundsBehavior: Flickable.StopAtBounds
-            snapMode: ListView.SnapOneItem
             highlightMoveDuration: root.selectionDuration
-            highlightResizeDuration: root.selectionDuration
-            highlightRangeMode: ListView.StrictlyEnforceRange
-            preferredHighlightBegin: sidePeek
-            preferredHighlightEnd: preferredHighlightBegin + cardWidth
-
-            header: Item {
-              width: Math.max(0, wallpaperList.sidePeek - wallpaperList.spacing)
-              height: 1
-            }
-
-            footer: Item {
-              width: Math.max(0, wallpaperList.sidePeek - wallpaperList.spacing)
-              height: 1
-            }
+            keyNavigationWraps: true
 
             onCurrentIndexChanged: {
               if (currentIndex >= 0 && root.selectedIndex !== currentIndex)
@@ -284,11 +293,17 @@ Scope {
             }
 
             Keys.onPressed: function(event) {
-              if (event.key === Qt.Key_Right || event.key === Qt.Key_Down) {
+              if (event.key === Qt.Key_Right) {
                 root.moveSelection(1)
                 event.accepted = true
-              } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Up) {
+              } else if (event.key === Qt.Key_Left) {
                 root.moveSelection(-1)
+                event.accepted = true
+              } else if (event.key === Qt.Key_Down) {
+                root.moveSelection(wallpaperList.columns)
+                event.accepted = true
+              } else if (event.key === Qt.Key_Up) {
+                root.moveSelection(-wallpaperList.columns)
                 event.accepted = true
               } else if (event.key === Qt.Key_Return
                   || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
@@ -309,13 +324,12 @@ Scope {
               readonly property bool hovered: cardMouse.containsMouse
 
               width: wallpaperList.cardWidth
-              height: wallpaperList.height - 16
-              anchors.verticalCenter: parent.verticalCenter
+              height: wallpaperList.cardHeight
               z: selected ? 2 : (hovered ? 1 : 0)
-              radius: Theme.radiusLg
-              color: selected || hovered ? Theme.border : Theme.surfaceHover
-              opacity: selected ? 1 : (hovered ? 0.92 : 0.72)
-              scale: selected ? 1 : (hovered ? 0.97 : 0.94)
+              radius: Theme.radiusMd
+              color: Theme.surfaceHover
+              opacity: selected ? 1 : (hovered ? 0.96 : 0.86)
+              scale: selected ? 1 : (hovered ? 0.985 : 0.97)
               clip: true
 
               Behavior on color {
@@ -325,7 +339,11 @@ Scope {
                 NumberAnimation { duration: root.selectionDuration; easing.type: Easing.OutCubic }
               }
               Behavior on scale {
-                NumberAnimation { duration: root.selectionDuration; easing.type: Easing.OutBack }
+                SpringAnimation {
+                  spring: Theme.motionSpring
+                  damping: Theme.motionDamping
+                  epsilon: Theme.motionEpsilon
+                }
               }
 
               Image {
@@ -335,13 +353,17 @@ Scope {
                 cache: true
                 fillMode: Image.PreserveAspectCrop
                 opacity: status === Image.Ready ? 1 : 0
-                scale: wallpaperCard.selected ? 1 : 1.04
+                scale: wallpaperCard.hovered ? 1.035 : 1
 
                 Behavior on opacity {
                   NumberAnimation { duration: root.animationDuration }
                 }
                 Behavior on scale {
-                  NumberAnimation { duration: root.selectionDuration; easing.type: Easing.OutCubic }
+                  SpringAnimation {
+                    spring: Theme.motionSpring
+                    damping: Theme.motionDamping
+                    epsilon: Theme.motionEpsilon
+                  }
                 }
               }
 
@@ -351,7 +373,7 @@ Scope {
                 radius: parent.radius
                 color: "transparent"
                 border.width: wallpaperCard.selected
-                  ? Theme.spaceXxs : Theme.borderWidth
+                  ? 3 : Theme.borderWidth
                 border.color: wallpaperCard.selected ? Theme.accent
                   : (wallpaperCard.hovered ? Theme.accent : Theme.border)
 

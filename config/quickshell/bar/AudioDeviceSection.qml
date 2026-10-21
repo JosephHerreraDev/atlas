@@ -1,4 +1,7 @@
+import Quickshell
+import Quickshell.Widgets
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import ".."
 import "../shared/"
@@ -10,6 +13,8 @@ SystemSection {
   required property string direction
   required property var devices
   required property var selectedDevice
+  property bool showBackButton: true
+  property bool showSettingsButton: false
 
   signal backRequested()
 
@@ -19,7 +24,29 @@ SystemSection {
   SystemSectionHeader {
     width: parent.width
     title: root.title
+    showBackButton: root.showBackButton
     onBackRequested: root.backRequested()
+
+    Button {
+      Layout.preferredWidth: 24
+      Layout.preferredHeight: Theme.controlHeight
+      horizontalPadding: 0
+      visible: root.showSettingsButton
+      accessibleName: "Open audio settings"
+      onClicked: Quickshell.execDetached(["qs", "ipc", "call", "settings", "openSection", "audio"])
+      IconImage {
+        anchors.centerIn: parent
+        implicitWidth: 16
+        implicitHeight: 16
+        source: Qt.resolvedUrl("../assets/settings.svg")
+        layer.enabled: true
+        layer.effect: MultiEffect {
+          brightness: 1
+          colorization: 1
+          colorizationColor: Theme.foreground
+        }
+      }
+    }
   }
 
   Rectangle {

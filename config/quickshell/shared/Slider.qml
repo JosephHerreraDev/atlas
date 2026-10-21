@@ -91,9 +91,10 @@ Item {
       color: root.indicatorColor
 
       Behavior on width {
-        NumberAnimation {
-          duration: Theme.motionQuick
-          easing.type: Easing.OutQuad
+        SpringAnimation {
+          spring: Theme.motionSpring
+          damping: Theme.motionDamping
+          epsilon: Theme.motionEpsilon
         }
       }
     }

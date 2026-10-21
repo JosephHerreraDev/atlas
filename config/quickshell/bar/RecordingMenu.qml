@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Widgets
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Layouts
 import "../"
 import "../shared/"
 
@@ -25,7 +26,7 @@ Scope {
 
   function actionIcon(action: string): string {
     if (action === "pause")
-      return "../assets/pause.svg"
+      return ClockState.recordingPaused ? "../assets/play.svg" : "../assets/pause.svg"
     if (action === "stop")
       return "../assets/stop.svg"
     if (action === "output")
@@ -96,75 +97,61 @@ Scope {
 
       margins {
         right: 12
-        bottom: 12
+        bottom: 12 + BarStyle.bottomClearance
       }
 
-      Pill {
+      Rectangle {
         id: panel
+        implicitWidth: strip.implicitWidth + 16
+        implicitHeight: 38
+        color: Theme.surface
+        radius: Theme.radiusSm
+        border.width: Theme.borderWidth
+        border.color: Theme.borderFocus
 
-        child: Row {
-          spacing: Theme.spaceXs
+        Row {
+          id: strip
+          anchors.centerIn: parent
+          spacing: 2
 
+          Item {
+            width: 12
+            height: 28
+            Rectangle {
+              anchors.centerIn: parent
+              width: 6; height: 6; radius: 3
+              color: ClockState.recordingPaused ? Theme.warning : Theme.error
+            }
+          }
+          Text {
+            width: implicitWidth + 8
+            height: 28
+            text: root.formatElapsed(ClockState.recordingElapsedSeconds)
+            color: ClockState.recordingPaused ? Theme.foregroundMuted : Theme.foreground
+            font.family: "monospace"
+            font.pixelSize: Theme.fontCaption
+            verticalAlignment: Text.AlignVCenter
+          }
+          Repeater {
+            model: ["pause", "stop", "output", "microphone"]
+            RecordingButton {
+              required property string modelData
+              visible: !root.collapsed || modelData === "stop"
+              icon: root.actionIcon(modelData)
+              tooltip: root.actionTooltip(modelData)
+              selected: root.actionSelected(modelData)
+              iconColor: selected ? Theme.warning : hovered ? Theme.accent : Theme.foreground
+              enabled: !ClockState.operationBusy
+                && (modelData === "output" ? AudioState.outputAvailable
+                  : modelData === "microphone" ? AudioState.inputAvailable : true)
+              onClicked: ClockState.performRecordingAction(modelData)
+            }
+          }
           RecordingButton {
             icon: "../assets/chevron-left.svg"
-            tooltip: root.collapsed
-              ? "Expand recording controls"
-              : "Collapse recording controls"
+            tooltip: root.collapsed ? "Expand recording controls" : "Collapse recording controls"
             iconRotation: root.collapsed ? 0 : 180
             onClicked: root.collapsed = !root.collapsed
-          }
-
-          Row {
-            visible: !root.collapsed
-            spacing: Theme.spaceXs
-
-            Item {
-              implicitWidth: 16
-              implicitHeight: 36
-
-              Rectangle {
-                anchors.centerIn: parent
-                width: 8
-                height: 8
-                radius: 4
-                color: Theme.error
-              }
-            }
-
-            Text {
-              width: 64
-              height: 36
-              text: ClockState.operationMessage !== ""
-                ? ClockState.operationMessage
-                : root.formatElapsed(ClockState.recordingElapsedSeconds)
-              textFormat: Text.PlainText
-              color: ClockState.operationBusy || ClockState.recordingPaused
-                ? Theme.foregroundMuted
-                : Theme.foreground
-              font.family: Qt.application.font.family
-              font.pixelSize: Theme.fontCaption
-              font.weight: Theme.weightStrong
-              horizontalAlignment: Text.AlignHCenter
-              verticalAlignment: Text.AlignVCenter
-              elide: Text.ElideRight
-            }
-
-            Repeater {
-              model: ["pause", "stop", "output", "microphone"]
-
-              RecordingButton {
-                required property string modelData
-
-                icon: root.actionIcon(modelData)
-                tooltip: root.actionTooltip(modelData)
-                selected: root.actionSelected(modelData)
-                iconColor: selected
-                  ? Theme.error
-                  : (hovered ? Theme.accent : Theme.foreground)
-                enabled: !ClockState.operationBusy
-                onClicked: ClockState.performRecordingAction(modelData)
-              }
-            }
           }
         }
       }
@@ -180,20 +167,21 @@ Scope {
     property real iconRotation: 0
     property color iconColor: hovered ? Theme.accent : Theme.foreground
 
-    implicitWidth: 38
-    implicitHeight: 36
+    implicitWidth: 30
+    implicitHeight: 28
     horizontalPadding: 0
     verticalPadding: 0
     accessibleName: tooltip
-    buttonBorderColor: selected || hovered ? Theme.accent : Theme.border
+    buttonColor: hovered || selected ? Theme.surfaceHover : "transparent"
+    buttonBorderWidth: 0
+    opacity: enabled ? 1 : 0.4
 
     IconImage {
       anchors.centerIn: parent
-      implicitWidth: 20
-      implicitHeight: 20
+      width: 16
+      height: 16
       source: Qt.resolvedUrl(button.icon)
       rotation: button.iconRotation
-
       layer.enabled: true
       layer.effect: MultiEffect {
         brightness: 1

@@ -1,6 +1,10 @@
+import Quickshell
 import Quickshell.Networking
+import Quickshell.Widgets
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
+import QtQuick.Controls as Controls
 import "../"
 import "../shared/"
 
@@ -8,6 +12,8 @@ SystemSection {
   id: root
 
   signal backRequested()
+  property bool showBackButton: true
+  property bool showSettingsButton: true
 
   readonly property int spaceXs: Theme.spaceXs
   readonly property int spaceSm: Theme.spaceSm
@@ -23,6 +29,10 @@ SystemSection {
     SystemState.primaryConnectedNetwork
   readonly property var availableNetworks: SystemState.availableNetworks
   readonly property var closeNetworks: SystemState.closeNetworks
+  readonly property bool hasVisibleNetworks:
+    connectedNetworks.length > 0
+      || availableNetworks.length > 0
+      || closeNetworks.length > 0
   readonly property var pendingWifiNetwork: SystemState.pendingWifiNetwork
   readonly property var pendingWifiForgetNetwork:
     SystemState.pendingWifiForgetNetwork
@@ -54,14 +64,152 @@ SystemSection {
   }
 
 
+  component NetworkButton: Button {
+    id: networkButton
+    required property var network
+    property string statusText: ""
+    property bool connected: false
+    implicitHeight: 56
+    radius: Theme.radiusMd
+    buttonColor: hovered ? Theme.surfaceHover : Theme.surface
+    buttonBorderColor: activeFocus || hovered ? Theme.accent : Theme.border
+    opacity: enabled ? 1 : 0.55
+    Controls.ToolTip.visible: hovered
+    Controls.ToolTip.delay: 700
+    Controls.ToolTip.text: (network.name || "Unknown network")
+
+    RowLayout {
+      anchors.fill: parent
+      anchors.margins: root.spaceSm
+      spacing: root.spaceSm
+
+      Rectangle {
+        Layout.preferredWidth: 32
+        Layout.preferredHeight: 32
+        radius: Theme.radiusSm
+        color: networkButton.connected
+          ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12)
+          : Theme.surfaceHover
+        IconImage {
+          anchors.centerIn: parent
+          implicitWidth: 20
+          implicitHeight: 20
+          source: Qt.resolvedUrl("../assets/" + (networkButton.network.signalStrength <= 0.33
+            ? "wifi-low" : networkButton.network.signalStrength <= 0.66
+              ? "wifi-mid" : "wifi-high") + ".svg")
+          layer.enabled: true
+          layer.effect: MultiEffect {
+            brightness: 1
+            colorization: 1
+            colorizationColor: networkButton.connected ? Theme.accent : Theme.foregroundMuted
+          }
+        }
+      }
+
+      ColumnLayout {
+        Layout.fillWidth: true
+        spacing: 3
+        Text {
+          Layout.fillWidth: true
+          text: (networkButton.network.name || "Unknown network")
+          textFormat: Text.PlainText
+          color: Theme.foreground
+          font.pixelSize: root.bodyFontSize
+          font.weight: Theme.weightStrong
+          elide: Text.ElideRight
+        }
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: root.spaceSm
+          Text {
+            Layout.fillWidth: true
+            text: networkButton.statusText
+            color: networkButton.connected ? Theme.accent : Theme.foregroundMuted
+            font.pixelSize: root.captionFontSize
+            elide: Text.ElideRight
+          }
+
+        }
+      }
+
+    }
+  }
+
+  component ForgetControl: ColumnLayout {
+    id: forgetControl
+    required property var network
+    readonly property bool confirming:
+      root.pendingWifiForgetNetwork === network
+    Layout.preferredWidth: 64
+    Layout.minimumWidth: 64
+    Layout.maximumWidth: 64
+    Layout.preferredHeight: 56
+    spacing: 2
+
+    Button {
+      Layout.fillWidth: true
+      Layout.preferredHeight: forgetControl.confirming ? 32 : 56
+      radius: Theme.radiusMd
+      accessibleName: (forgetControl.confirming ? "Confirm forgetting " : "Forget ")
+        + (forgetControl.network.name || "network")
+      buttonColor: forgetControl.confirming || hovered
+        ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12) : "transparent"
+      buttonBorderColor: forgetControl.confirming || hovered || activeFocus
+        ? Theme.error : Theme.border
+      onClicked: root.requestWifiForget(forgetControl.network)
+      Controls.ToolTip.visible: hovered
+      Controls.ToolTip.delay: 500
+      Controls.ToolTip.text: "Forget " + (forgetControl.network.name || "network")
+        + " — pairing will be removed"
+
+      IconImage {
+        anchors.centerIn: parent
+        visible: !forgetControl.confirming
+        implicitWidth: 18
+        implicitHeight: 18
+        source: Qt.resolvedUrl("../assets/trash.svg")
+        layer.enabled: true
+        layer.effect: MultiEffect {
+          brightness: 1
+          colorization: 1
+          colorizationColor: forgetControl.confirming ? Theme.error : Theme.foregroundMuted
+        }
+      }
+      Text {
+        anchors.centerIn: parent
+        visible: forgetControl.confirming
+        text: "Forget?"
+        color: Theme.error
+        font.pixelSize: root.captionFontSize
+        font.weight: Theme.weightStrong
+      }
+    }
+    Button {
+      Layout.fillWidth: true
+      Layout.preferredHeight: 22
+      visible: forgetControl.confirming
+      accessibleName: "Cancel forgetting " + (forgetControl.network.name || "network")
+      buttonColor: hovered ? Theme.surfaceHover : "transparent"
+      buttonBorderColor: activeFocus ? Theme.borderFocus : "transparent"
+      onClicked: SystemState.pendingWifiForgetNetwork = null
+      Text {
+        anchors.centerIn: parent
+        text: "Cancel"
+        color: Theme.foregroundMuted
+        font.pixelSize: root.captionFontSize
+      }
+    }
+  }
+
   RowLayout {
     width: parent.width
     height: root.controlHeight
     spacing: root.spaceSm
 
     Button {
-      Layout.preferredWidth: 24
+      Layout.preferredWidth: root.showBackButton ? 24 : 0
       Layout.preferredHeight: root.controlHeight
+      visible: root.showBackButton
       horizontalPadding: 0
       buttonBorderColor: hovered ? Theme.accent : Theme.border
       accessibleName: "Back to system settings"
@@ -81,6 +229,27 @@ SystemSection {
       color: Theme.foreground
       font.pixelSize: root.titleFontSize
       font.weight: Theme.weightStrong
+    }
+
+    Button {
+      Layout.preferredWidth: 24
+      Layout.preferredHeight: root.controlHeight
+      horizontalPadding: 0
+      visible: root.showSettingsButton
+      accessibleName: "Open Internet settings"
+      onClicked: Quickshell.execDetached(["qs", "ipc", "call", "settings", "openSection", "internet"])
+      IconImage {
+        anchors.centerIn: parent
+        implicitWidth: 16
+        implicitHeight: 16
+        source: Qt.resolvedUrl("../assets/settings.svg")
+        layer.enabled: true
+        layer.effect: MultiEffect {
+          brightness: 1
+          colorization: 1
+          colorizationColor: Theme.foreground
+        }
+      }
     }
 
     Toggle {
@@ -117,7 +286,7 @@ SystemSection {
 
   Text {
     width: parent.width
-    text: "Connected networks"
+    text: "Networks"
     color: Theme.foreground
     font.pixelSize: root.captionFontSize
     font.weight: Theme.weightStrong
@@ -125,150 +294,48 @@ SystemSection {
 
   Repeater {
     model: root.connectedNetworks
-
-    Button {
-      id: connectedNetworkButton
-
+    RowLayout {
       required property var modelData
-
       width: root.width
-      implicitHeight: root.listRowHeight + root.spaceLg
-      enabled: !modelData.stateChanging
-      accessibleName: "Disconnect from "
-        + (modelData.name || "unknown network")
-      buttonBorderColor: hovered ? Theme.accent : Theme.border
-      onClicked: modelData.disconnect()
-
-      RowLayout {
-        anchors.fill: parent
-        anchors.leftMargin: root.spaceLg
-        anchors.rightMargin: root.spaceLg
-
-        ColumnLayout {
-          Layout.fillWidth: true
-          spacing: 0
-
-          Text {
-            Layout.fillWidth: true
-            text: modelData.name || "Unknown network"
-            textFormat: Text.PlainText
-            color: Theme.accent
-            font.pixelSize: root.bodyFontSize
-            elide: Text.ElideRight
-          }
-
-          Text {
-            Layout.fillWidth: true
-            visible: modelData === root.primaryConnectedNetwork
-            text: "↓ " + root.formatNetworkSpeed(root.networkDownloadSpeed)
+      height: 56
+      spacing: root.spaceXs
+      NetworkButton {
+        Layout.fillWidth: true
+        Layout.preferredHeight: 56
+        network: modelData
+        connected: true
+        statusText: modelData.stateChanging ? "Working…"
+          : modelData === root.primaryConnectedNetwork
+            ? "↓ " + root.formatNetworkSpeed(root.networkDownloadSpeed)
               + "   ↑ " + root.formatNetworkSpeed(root.networkUploadSpeed)
-            color: Theme.foregroundMuted
-            font.pixelSize: root.captionFontSize
-            elide: Text.ElideRight
-          }
-        }
-
-        Text {
-          text: modelData.stateChanging ? "Working…" : "Disconnect"
-          color: Theme.foreground
-          font.pixelSize: root.captionFontSize
-        }
+            : "Connected"
+        enabled: !modelData.stateChanging
+        accessibleName: "Disconnect from " + (modelData.name || "unknown network")
+        onClicked: modelData.disconnect()
       }
+      ForgetControl { network: modelData; enabled: !modelData.stateChanging }
     }
-  }
-
-  Text {
-    visible: root.connectedNetworks.length === 0
-    text: "None"
-    color: Theme.border
-    font.pixelSize: root.captionFontSize
-  }
-
-  Rectangle {
-    width: parent.width
-    height: 1
-    color: Theme.border
-  }
-
-  Text {
-    width: parent.width
-    text: "Saved networks"
-    color: Theme.foreground
-    font.pixelSize: root.captionFontSize
-    font.weight: Theme.weightStrong
   }
 
   Repeater {
     model: root.availableNetworks
-
     RowLayout {
       required property var modelData
-
       width: root.width
-      height: root.listRowHeight
+      height: 56
       spacing: root.spaceXs
-
-      Button {
+      NetworkButton {
         Layout.fillWidth: true
-        Layout.preferredHeight: root.listRowHeight
+        Layout.preferredHeight: 56
+        network: modelData
+        statusText: modelData.stateChanging ? "Working…"
+          : "Saved · " + Math.round(modelData.signalStrength * 100) + "% signal"
         enabled: !modelData.stateChanging
-        accessibleName: "Connect to "
-          + (modelData.name || "unknown network")
-        buttonBorderColor: hovered ? Theme.accent : Theme.border
+        accessibleName: "Connect to " + (modelData.name || "unknown network")
         onClicked: root.connectNetwork(modelData)
-
-        RowLayout {
-          anchors.fill: parent
-          anchors.leftMargin: root.spaceMd
-          anchors.rightMargin: root.spaceMd
-
-          Text {
-            Layout.fillWidth: true
-            text: modelData.name || "Unknown network"
-            textFormat: Text.PlainText
-            color: Theme.foreground
-            font.pixelSize: root.bodyFontSize
-            elide: Text.ElideRight
-          }
-
-          Text {
-            text: modelData.stateChanging ? "Working…" : "Connect"
-            color: Theme.accent
-            font.pixelSize: root.captionFontSize
-          }
-        }
       }
-
-      Button {
-        readonly property bool confirming:
-          root.pendingWifiForgetNetwork === modelData
-
-        Layout.preferredWidth: confirming ? 70 : 54
-        Layout.preferredHeight: root.listRowHeight
-        enabled: !modelData.stateChanging
-        accessibleName: confirming
-          ? "Confirm forgetting " + (modelData.name || "network")
-          : "Forget " + (modelData.name || "network")
-        buttonBorderColor: confirming || hovered
-          ? Theme.error
-          : Theme.border
-        onClicked: root.requestWifiForget(modelData)
-
-        Text {
-          anchors.centerIn: parent
-          text: parent.confirming ? "Confirm?" : "Forget"
-          color: Theme.error
-          font.pixelSize: root.captionFontSize
-        }
-      }
+      ForgetControl { network: modelData; enabled: !modelData.stateChanging }
     }
-  }
-
-  Text {
-    visible: root.availableNetworks.length === 0
-    text: "None"
-    color: Theme.border
-    font.pixelSize: root.captionFontSize
   }
 
   Rectangle {
@@ -285,6 +352,15 @@ SystemSection {
     font.weight: Theme.weightStrong
   }
 
+  Text {
+    width: parent.width
+    visible: !root.hasVisibleNetworks
+    text: "Scanning for nearby networks…"
+    color: Theme.foregroundMuted
+    font.pixelSize: root.captionFontSize
+    horizontalAlignment: Text.AlignHCenter
+  }
+
   Repeater {
     model: root.closeNetworks
 
@@ -294,50 +370,16 @@ SystemSection {
       width: root.width
       spacing: root.spaceXs
 
-      Button {
+      NetworkButton {
         width: parent.width
-        implicitHeight: root.listRowHeight + root.spaceSm
+        network: modelData
+        statusText: modelData.stateChanging ? "Working…"
+          : Math.round(modelData.signalStrength * 100) + "% signal"
         enabled: !modelData.stateChanging
-        accessibleName: "Connect to "
-          + (modelData.name || "unknown network")
-        buttonBorderColor: root.pendingWifiNetwork === modelData
-          ? Theme.accent
-          : (hovered ? Theme.accent : Theme.border)
+        accessibleName: "Connect to " + (modelData.name || "unknown network")
+        buttonBorderColor: root.pendingWifiNetwork === modelData || hovered || activeFocus
+          ? Theme.accent : Theme.border
         onClicked: root.connectNetwork(modelData)
-
-        RowLayout {
-          anchors.fill: parent
-          anchors.leftMargin: root.spaceLg
-          anchors.rightMargin: root.spaceLg
-
-          ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 0
-
-            Text {
-              Layout.fillWidth: true
-              text: modelData.name || "Unknown network"
-              textFormat: Text.PlainText
-              color: Theme.foreground
-              font.pixelSize: root.bodyFontSize
-              elide: Text.ElideRight
-            }
-
-            Text {
-              Layout.fillWidth: true
-              text: Math.round(modelData.signalStrength * 100) + "% signal"
-              color: Theme.foregroundMuted
-              font.pixelSize: root.captionFontSize
-              elide: Text.ElideRight
-            }
-          }
-
-          Text {
-            text: modelData.stateChanging ? "Working…" : "Connect"
-            color: Theme.accent
-            font.pixelSize: root.captionFontSize
-          }
-        }
       }
 
       Rectangle {
@@ -455,12 +497,6 @@ SystemSection {
     }
   }
 
-  Text {
-    visible: root.closeNetworks.length === 0
-    text: "None"
-    color: Theme.border
-    font.pixelSize: root.captionFontSize
-  }
   }
 
 }

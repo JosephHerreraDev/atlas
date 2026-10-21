@@ -14,9 +14,10 @@ Rectangle {
     : Theme.surface
 
   property int buttonBorderWidth: Theme.borderWidth
-  property real horizontalPadding: Theme.radiusMd
+  property real horizontalPadding: Theme.spaceSm
   property real verticalPadding: Theme.spaceXxs
   property string accessibleName: ""
+  property bool consumeWheel: true
 
   readonly property bool hovered: hoverHandler.hovered
   readonly property bool pressed: mouseArea.pressed
@@ -53,9 +54,10 @@ Rectangle {
   transformOrigin: Item.Center
 
   Behavior on scale {
-    NumberAnimation {
-      duration: Theme.motionQuick
-      easing.type: Easing.OutQuad
+    SpringAnimation {
+      spring: Theme.motionSpring
+      damping: Theme.motionDamping
+      epsilon: Theme.motionEpsilon
     }
   }
 
@@ -81,9 +83,10 @@ Rectangle {
   }
 
   Behavior on border.width {
-    NumberAnimation {
-      duration: Theme.motionQuick
-      easing.type: Easing.OutQuad
+    SpringAnimation {
+      spring: Theme.motionSpring
+      damping: Theme.motionDamping
+      epsilon: Theme.motionEpsilon
     }
   }
 
@@ -126,8 +129,9 @@ Rectangle {
     }
 
     onWheel: function(wheel) {
-      root.wheelMoved(wheel.angleDelta.y > 0)
-      wheel.accepted = true
+      wheel.accepted = root.consumeWheel
+      if (root.consumeWheel)
+        root.wheelMoved(wheel.angleDelta.y > 0)
     }
   }
 }

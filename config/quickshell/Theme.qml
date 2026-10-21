@@ -1,10 +1,25 @@
 pragma Singleton
 
 import QtQuick
+import QtCore
 import Quickshell
 import Quickshell.Io
 
 Singleton {
+  id: root
+
+  property int cornerRadius: 6
+
+  onCornerRadiusChanged: {
+    if (cornerRadius < 0) cornerRadius = 0
+    else if (cornerRadius > 15) cornerRadius = 15
+  }
+
+  Settings {
+    category: "appearance"
+    property alias quickshellCornerRadius: root.cornerRadius
+  }
+
   FileView {
     path: Qt.resolvedUrl("ThemeColors.json")
     watchChanges: true
@@ -94,15 +109,21 @@ Singleton {
   readonly property int controlHeight: 28
   readonly property int listRowHeight: 32
   readonly property int iconSize: 14
-  readonly property int radiusSm: 4
-  readonly property int radiusMd: 6
-  readonly property int radiusLg: 8
+  readonly property int radiusSm: cornerRadius
+  readonly property int radiusMd: cornerRadius
+  readonly property int radiusLg: cornerRadius
   readonly property int borderWidth: 1
   readonly property int motionQuick: 90
   readonly property int motionFast: 100
   readonly property int motionNormal: 160
   readonly property int motionSlow: 240
-  readonly property real popupOpacity: 0.9
+  // Shared physics for movement, resizing, and press feedback. Timed fades
+  // remain separate so opacity and colors never overshoot their valid ranges.
+  readonly property real motionSpring: 5.0
+  readonly property real motionDamping: 0.38
+  readonly property real motionEpsilon: 0.001
+  // Menus use solid surfaces so text and controls remain crisp over any wallpaper.
+  readonly property real popupOpacity: 1.0
   readonly property color borderStrong: accent
   readonly property color borderFocus: accent
   readonly property color text: foreground

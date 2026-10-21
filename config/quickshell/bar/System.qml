@@ -7,18 +7,13 @@ import "../shared/"
 Pill {
   id: root
 
+  property var controller: null
   required property var notifications
   readonly property bool trayRevealed: systemTray.revealed
 
-  function togglePanel(): void {
-    if (!systemButton.panelVisible)
-      systemTray.collapse()
-    systemButton.panelVisible = !systemButton.panelVisible
-  }
-
   function toggleTray(): void {
     if (!systemTray.revealed)
-      systemButton.panelVisible = false
+      if (controller) controller.closePanel()
     systemTray.toggle()
   }
 
@@ -33,17 +28,13 @@ Pill {
 
       onRevealedChanged: {
         if (revealed)
-          systemButton.panelVisible = false
+          if (controller) controller.closePanel()
       }
     }
-    SystemButton {
-      id: systemButton
-      popupAnchor: root
-      notifications: root.notifications
-
-      onPanelVisibleChanged: {
-        if (panelVisible)
-          systemTray.collapse()
+    Connections {
+      target: root.controller
+      function onPanelVisibleChanged(): void {
+        if (root.controller.panelVisible) systemTray.collapse()
       }
     }
   }

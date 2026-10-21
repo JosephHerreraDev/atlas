@@ -1,9 +1,18 @@
 pragma Singleton
 
 import Quickshell
+import QtCore
 
 Singleton {
+  id: root
+
   property string displayMode: "numbers"
+  readonly property var displayModes: ["numbers", "symbols", "shapes", "pacman"]
+
+  Settings {
+    category: "bar"
+    property alias workspaceDisplayMode: root.displayMode
+  }
 
   readonly property var symbols: ({
     1: "󰎤",

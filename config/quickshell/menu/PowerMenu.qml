@@ -8,6 +8,7 @@ import QtQuick.Controls
 import QtQuick.Effects
 import QtQuick.Layouts
 import "../"
+import "../bar" as Bar
 
 Scope {
   id: root
@@ -23,7 +24,7 @@ Scope {
 
   readonly property int animationDuration: Theme.motionNormal - 20
   readonly property int actionSize: 76
-  readonly property int actionSpacing: Theme.radiusMd
+  readonly property int actionSpacing: Theme.spaceSm
   readonly property var actions: [
     { name: "Lock", description: "Lock the current session", icon: "lock.svg", command: ["hyprlock"], confirm: false },
     { name: "Log out", description: "End the current session", icon: "logout.svg", command: ["sh", "-c", "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"], confirm: true },
@@ -192,9 +193,12 @@ Scope {
 
       Rectangle {
         id: panel
+        readonly property string horizontalPlacement: Placement.horizontal(Placement.powerMenu)
+        readonly property string verticalPlacement: Placement.vertical(Placement.powerMenu)
+        readonly property bool sidePlacement: horizontalPlacement !== "center"
         readonly property int availableContentWidth: Math.max(
           root.actionSize, window.width - 60)
-        readonly property int gridColumns: Math.max(1, Math.min(
+        readonly property int gridColumns: sidePlacement ? 1 : Math.max(1, Math.min(
           root.actions.length,
           Math.floor((availableContentWidth + root.actionSpacing)
             / (root.actionSize + root.actionSpacing))))
@@ -204,7 +208,10 @@ Scope {
         width: Math.min(gridWidth + 28, window.width - 32)
         implicitHeight: content.implicitHeight + 28
         height: implicitHeight
-        anchors.centerIn: parent
+        x: Placement.itemX(Placement.powerMenu, window.width, width, Placement.edgeMargin)
+        y: Placement.itemY(Placement.powerMenu, window.height, height,
+          Placement.edgeMargin + Bar.BarStyle.topClearance,
+          Placement.edgeMargin + Bar.BarStyle.bottomClearance)
         opacity: root.opened ? 1 : 0
         scale: root.opened ? 1 : 0.96
         radius: Theme.radiusLg
@@ -216,7 +223,13 @@ Scope {
         border.width: Theme.borderWidth
         border.color: Theme.border
         Behavior on opacity { NumberAnimation { duration: root.animationDuration } }
-        Behavior on scale { NumberAnimation { duration: root.animationDuration } }
+        Behavior on scale {
+          SpringAnimation {
+            spring: Theme.motionSpring
+            damping: Theme.motionDamping
+            epsilon: Theme.motionEpsilon
+          }
+        }
         MouseArea { anchors.fill: parent; onClicked: function(mouse) { mouse.accepted = true } }
 
         ColumnLayout {

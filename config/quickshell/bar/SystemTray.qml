@@ -133,9 +133,10 @@ FocusScope {
   }
 
   Behavior on revealProgress {
-    NumberAnimation {
-      duration: root.animationDuration
-      easing.type: Easing.OutCubic
+    SpringAnimation {
+      spring: Theme.motionSpring
+      damping: Theme.motionDamping
+      epsilon: Theme.motionEpsilon
     }
   }
 
@@ -208,7 +209,7 @@ FocusScope {
           anchors.centerIn: parent
           visible: trayIcon.status !== Image.Ready
           text: root.itemName(trayEntry.modelData).slice(0, 1).toUpperCase()
-          color: Theme.foreground
+          color: trayEntry.selected ? Theme.accent : Theme.foreground
           font.pixelSize: Theme.fontCaption
           font.weight: Theme.weightStrong
         }
@@ -239,7 +240,17 @@ FocusScope {
           id: trayMenu
 
           anchor.item: trayEntry
-          anchor.rect.y: trayEntry.height
+          anchor.rect.x: BarStyle.position === "left" ? trayEntry.width + 8
+            : BarStyle.position === "right" ? -8 : trayEntry.width
+          anchor.rect.y: BarStyle.position === "left" || BarStyle.position === "right"
+            ? Math.round(trayEntry.height / 2)
+            : BarStyle.position === "bottom" ? 0 : trayEntry.height
+          anchor.edges: BarStyle.position === "left" ? Edges.Left
+            : BarStyle.position === "right" ? Edges.Right
+            : (BarStyle.position === "bottom" ? Edges.Bottom : Edges.Top) | Edges.Right
+          anchor.gravity: BarStyle.position === "left" ? Edges.Right
+            : BarStyle.position === "right" ? Edges.Left
+            : (BarStyle.position === "bottom" ? Edges.Top : Edges.Bottom) | Edges.Left
           menu: trayEntry.modelData.menu
 
           onOpened: root.openMenuCount++
@@ -257,6 +268,7 @@ FocusScope {
           target: trayEntry
           text: root.itemTooltip(trayEntry.modelData)
           shown: trayEntry.hovered && !trayEntry.menuVisible
+          edge: BarStyle.position
         }
       }
     }
@@ -277,9 +289,10 @@ FocusScope {
         rotation: root.revealed ? 180 : 0
 
         Behavior on rotation {
-          NumberAnimation {
-            duration: root.animationDuration
-            easing.type: Easing.OutCubic
+          SpringAnimation {
+            spring: Theme.motionSpring
+            damping: Theme.motionDamping
+            epsilon: Theme.motionEpsilon
           }
         }
 
@@ -303,6 +316,7 @@ FocusScope {
         target: trayToggle
         text: trayToggle.accessibleName
         shown: trayToggle.hovered
+        edge: BarStyle.position
       }
     }
   }

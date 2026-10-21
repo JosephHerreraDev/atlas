@@ -44,9 +44,10 @@ Item {
   }
 
   Behavior on scale {
-    NumberAnimation {
-      duration: root.animationDuration
-      easing.type: Easing.OutCubic
+    SpringAnimation {
+      spring: Theme.motionSpring
+      damping: Theme.motionDamping
+      epsilon: Theme.motionEpsilon
     }
   }
 

@@ -9,6 +9,8 @@ import "../"
 Item {
   id: root
 
+  property bool highlighted: false
+
   readonly property var device: findDevice()
   readonly property bool connected: device?.connected ?? false
   readonly property bool wired: device?.type === DeviceType.Wired
@@ -75,6 +77,8 @@ Item {
       brightness: 1
       colorization: 1
       colorizationColor: {
+        if (root.highlighted)
+          return Theme.accent
         if (!root.connected)
           return Theme.error
         if (root.limited)

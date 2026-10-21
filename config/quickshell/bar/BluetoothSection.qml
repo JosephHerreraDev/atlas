@@ -1,6 +1,10 @@
+import Quickshell
 import Quickshell.Bluetooth as BluetoothService
+import Quickshell.Widgets
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
+import QtQuick.Controls as Controls
 import "../"
 import "../shared/"
 
@@ -8,6 +12,9 @@ SystemSection {
   id: root
 
   signal backRequested()
+  property bool showBackButton: true
+  property bool showSettingsButton: true
+  property string subtitle: ""
 
   readonly property int spaceXs: Theme.spaceXs
   readonly property int spaceSm: Theme.spaceSm
@@ -68,14 +75,178 @@ SystemSection {
   }
 
 
+  component DeviceIcon: IconImage {
+    required property var device
+    property color iconColor: Theme.foreground
+    Layout.preferredWidth: 20
+    Layout.preferredHeight: 20
+    source: {
+      const type = String(device.icon || "").toLowerCase()
+      let asset = "bluetooth-on"
+      if (type.includes("mouse")) asset = "device-mouse"
+      else if (type.includes("keyboard")) asset = "device-keyboard"
+      else if (type.includes("headset") || type.includes("headphone")) asset = "device-headphones"
+      else if (type.includes("display") || type.includes("monitor") || type.includes("video")) asset = "display"
+      else if (type.includes("audio") || type.includes("speaker")) asset = "device-speaker"
+      else if (type.includes("phone")) asset = "device-phone"
+      else if (type.includes("computer")) asset = "device-computer"
+      else if (type.includes("gaming") || type.includes("gamepad") || type.includes("joystick")) asset = "device-gamepad"
+      else if (type.includes("watch")) asset = "device-watch"
+      return Qt.resolvedUrl("../assets/" + asset + ".svg")
+    }
+    layer.enabled: true
+    layer.effect: MultiEffect {
+      brightness: 1
+      colorization: 1
+      colorizationColor: iconColor
+    }
+  }
+
+  component DeviceButton: Button {
+    id: deviceButton
+    required property var device
+    property string actionText: ""
+    property string statusText: ""
+    property bool connected: false
+    implicitHeight: 56
+    radius: Theme.radiusMd
+    buttonColor: hovered ? Theme.surfaceHover : Theme.surface
+    buttonBorderColor: activeFocus || hovered ? Theme.accent : Theme.border
+    opacity: enabled ? 1 : 0.55
+    Controls.ToolTip.visible: hovered
+    Controls.ToolTip.delay: 700
+    Controls.ToolTip.text: root.bluetoothDeviceName(device)
+
+    RowLayout {
+      anchors.fill: parent
+      anchors.margins: root.spaceSm
+      spacing: root.spaceSm
+
+      Rectangle {
+        Layout.preferredWidth: 32
+        Layout.preferredHeight: 32
+        radius: Theme.radiusSm
+        color: deviceButton.connected
+          ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12)
+          : Theme.surfaceHover
+        DeviceIcon {
+          anchors.centerIn: parent
+          width: 20
+          height: 20
+          device: deviceButton.device
+          iconColor: deviceButton.connected ? Theme.accent : Theme.foregroundMuted
+        }
+      }
+
+      ColumnLayout {
+        Layout.fillWidth: true
+        spacing: 3
+        Text {
+          Layout.fillWidth: true
+          text: root.bluetoothDeviceName(deviceButton.device)
+          textFormat: Text.PlainText
+          color: Theme.foreground
+          font.pixelSize: root.bodyFontSize
+          font.weight: Theme.weightStrong
+          elide: Text.ElideRight
+        }
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: root.spaceSm
+          Text {
+            Layout.fillWidth: true
+            text: deviceButton.statusText
+            color: deviceButton.connected ? Theme.accent : Theme.foregroundMuted
+            font.pixelSize: root.captionFontSize
+            elide: Text.ElideRight
+          }
+          Text {
+            visible: deviceButton.actionText !== ""
+            text: deviceButton.actionText
+            color: deviceButton.hovered ? Theme.accent : Theme.foregroundMuted
+            font.pixelSize: root.captionFontSize
+          }
+        }
+      }
+
+    }
+  }
+
+  component ForgetControl: ColumnLayout {
+    id: forgetControl
+    required property var device
+    readonly property bool confirming:
+      root.pendingBluetoothForgetAddress === device.address
+    Layout.preferredWidth: 64
+    Layout.minimumWidth: 64
+    Layout.maximumWidth: 64
+    Layout.preferredHeight: 56
+    spacing: 2
+
+    Button {
+      Layout.fillWidth: true
+      Layout.preferredHeight: forgetControl.confirming ? 32 : 56
+      radius: Theme.radiusMd
+      accessibleName: (forgetControl.confirming ? "Confirm forgetting " : "Forget ")
+        + root.bluetoothDeviceName(forgetControl.device)
+      buttonColor: forgetControl.confirming || hovered
+        ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12) : "transparent"
+      buttonBorderColor: forgetControl.confirming || hovered || activeFocus
+        ? Theme.error : Theme.border
+      onClicked: root.requestBluetoothForget(forgetControl.device)
+      Controls.ToolTip.visible: hovered
+      Controls.ToolTip.delay: 500
+      Controls.ToolTip.text: "Forget " + root.bluetoothDeviceName(forgetControl.device)
+        + " — pairing will be removed"
+
+      IconImage {
+        anchors.centerIn: parent
+        visible: !forgetControl.confirming
+        implicitWidth: 18
+        implicitHeight: 18
+        source: Qt.resolvedUrl("../assets/trash.svg")
+        layer.enabled: true
+        layer.effect: MultiEffect {
+          brightness: 1
+          colorization: 1
+          colorizationColor: forgetControl.confirming ? Theme.error : Theme.foregroundMuted
+        }
+      }
+      Text {
+        anchors.centerIn: parent
+        visible: forgetControl.confirming
+        text: "Forget?"
+        color: Theme.error
+        font.pixelSize: root.captionFontSize
+        font.weight: Theme.weightStrong
+      }
+    }
+    Button {
+      Layout.fillWidth: true
+      Layout.preferredHeight: 22
+      visible: forgetControl.confirming
+      accessibleName: "Cancel forgetting " + root.bluetoothDeviceName(forgetControl.device)
+      buttonColor: hovered ? Theme.surfaceHover : "transparent"
+      buttonBorderColor: activeFocus ? Theme.borderFocus : "transparent"
+      onClicked: SystemState.pendingBluetoothForgetAddress = ""
+      Text {
+        anchors.centerIn: parent
+        text: "Cancel"
+        color: Theme.foregroundMuted
+        font.pixelSize: root.captionFontSize
+      }
+    }
+  }
+
   RowLayout {
     width: parent.width
-    height: root.controlHeight
+    height: Math.max(root.controlHeight, bluetoothHeaderText.implicitHeight)
     spacing: root.spaceSm
 
     Button {
-      Layout.preferredWidth: 24
+      Layout.preferredWidth: root.showBackButton ? 24 : 0
       Layout.preferredHeight: root.controlHeight
+      visible: root.showBackButton
       horizontalPadding: 0
       buttonBorderColor: hovered ? Theme.accent : Theme.border
       accessibleName: "Back to system settings"
@@ -89,12 +260,49 @@ SystemSection {
       }
     }
 
-    Text {
+    ColumnLayout {
+      id: bluetoothHeaderText
       Layout.fillWidth: true
-      text: "Bluetooth"
-      color: Theme.foreground
-      font.pixelSize: root.titleFontSize
-      font.weight: Theme.weightStrong
+      spacing: 1
+
+      Text {
+        Layout.fillWidth: true
+        text: "Bluetooth"
+        color: Theme.foreground
+        font.pixelSize: root.titleFontSize
+        font.weight: Theme.weightStrong
+      }
+
+      Text {
+        Layout.fillWidth: true
+        visible: root.subtitle !== ""
+        text: root.subtitle
+        textFormat: Text.PlainText
+        color: Theme.foregroundMuted
+        font.pixelSize: root.captionFontSize
+        wrapMode: Text.WordWrap
+      }
+    }
+
+    Button {
+      Layout.preferredWidth: 24
+      Layout.preferredHeight: root.controlHeight
+      horizontalPadding: 0
+      visible: root.showSettingsButton
+      accessibleName: "Open Bluetooth settings"
+      onClicked: Quickshell.execDetached(["qs", "ipc", "call", "settings", "openBluetooth"])
+      IconImage {
+        anchors.centerIn: parent
+        implicitWidth: 16
+        implicitHeight: 16
+        source: Qt.resolvedUrl("../assets/settings.svg")
+        layer.enabled: true
+        layer.effect: MultiEffect {
+          brightness: 1
+          colorization: 1
+          colorizationColor: Theme.foreground
+        }
+      }
     }
 
     Toggle {
@@ -136,7 +344,7 @@ SystemSection {
 
     Text {
       width: parent.width
-      text: "Connected devices"
+      text: "Devices"
       color: Theme.foreground
       font.pixelSize: root.captionFontSize
       font.weight: Theme.weightStrong
@@ -144,173 +352,48 @@ SystemSection {
 
     Repeater {
       model: root.connectedBluetoothDevices
-
       RowLayout {
         required property var modelData
-
         width: root.width
-        height: root.listRowHeight + root.spaceLg
+        height: 56
         spacing: root.spaceXs
-
-        Button {
+        DeviceButton {
           Layout.fillWidth: true
-          Layout.preferredHeight: root.listRowHeight + root.spaceLg
+          Layout.preferredHeight: 56
+          device: modelData
+          connected: true
+          statusText: modelData.state !== BluetoothService.BluetoothDeviceState.Connected
+            ? root.bluetoothDeviceActionText(modelData, "Connected")
+            : "Connected" + (modelData.batteryAvailable
+            ? " · " + Math.round(modelData.battery * 100) + "%" : "")
           enabled: modelData.state === BluetoothService.BluetoothDeviceState.Connected
-          accessibleName: "Disconnect "
-            + root.bluetoothDeviceName(modelData)
-          buttonBorderColor: hovered ? Theme.accent : Theme.border
+          accessibleName: "Disconnect " + root.bluetoothDeviceName(modelData)
           onClicked: modelData.disconnect()
-
-          RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: root.spaceLg
-            anchors.rightMargin: root.spaceLg
-
-            ColumnLayout {
-              Layout.fillWidth: true
-              spacing: 0
-
-              Text {
-                Layout.fillWidth: true
-                text: root.bluetoothDeviceName(modelData)
-                textFormat: Text.PlainText
-                color: Theme.accent
-                font.pixelSize: root.bodyFontSize
-                elide: Text.ElideRight
-              }
-
-              Text {
-                Layout.fillWidth: true
-                visible: modelData.batteryAvailable
-                text: Math.round(modelData.battery * 100) + "% battery"
-                color: Theme.foregroundMuted
-                font.pixelSize: root.captionFontSize
-                elide: Text.ElideRight
-              }
-            }
-
-            Text {
-              text: root.bluetoothDeviceActionText(modelData, "Disconnect")
-              color: Theme.foreground
-              font.pixelSize: root.captionFontSize
-            }
-          }
         }
-
-        Button {
-          readonly property bool confirming:
-            root.pendingBluetoothForgetAddress === modelData.address
-
-          Layout.preferredWidth: confirming ? 70 : 54
-          Layout.preferredHeight: root.listRowHeight + root.spaceLg
-          accessibleName: confirming
-            ? "Confirm forgetting " + root.bluetoothDeviceName(modelData)
-            : "Forget " + root.bluetoothDeviceName(modelData)
-          buttonBorderColor: confirming || hovered ? Theme.error : Theme.border
-          onClicked: root.requestBluetoothForget(modelData)
-
-          Text {
-            anchors.centerIn: parent
-            text: parent.confirming ? "Confirm?" : "Forget"
-            color: Theme.error
-            font.pixelSize: root.captionFontSize
-          }
-        }
+        ForgetControl { device: modelData }
       }
-    }
-
-    Text {
-      visible: root.connectedBluetoothDevices.length === 0
-      text: "None"
-      color: Theme.border
-      font.pixelSize: root.captionFontSize
-    }
-
-    Rectangle {
-      width: parent.width
-      height: 1
-      color: Theme.border
-    }
-
-    Text {
-      width: parent.width
-      text: "Saved devices"
-      color: Theme.foreground
-      font.pixelSize: root.captionFontSize
-      font.weight: Theme.weightStrong
     }
 
     Repeater {
       model: root.availableBluetoothDevices
-
       RowLayout {
         required property var modelData
-
         width: root.width
-        height: root.listRowHeight
+        height: 56
         spacing: root.spaceXs
-
-        Button {
+        DeviceButton {
           Layout.fillWidth: true
-          Layout.preferredHeight: root.listRowHeight
+          Layout.preferredHeight: 56
+          device: modelData
+          statusText: root.bluetoothPairingAddress === modelData.address
+            ? "Connecting…" : root.bluetoothDeviceActionText(modelData, "Saved device")
           enabled: modelData.state === BluetoothService.BluetoothDeviceState.Disconnected
             && root.bluetoothPairingAddress === ""
-          accessibleName: "Connect "
-            + root.bluetoothDeviceName(modelData)
-          buttonBorderColor: hovered ? Theme.accent : Theme.border
+          accessibleName: "Connect " + root.bluetoothDeviceName(modelData)
           onClicked: root.connectBluetoothDevice(modelData)
-
-          RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: root.spaceMd
-            anchors.rightMargin: root.spaceMd
-
-            Text {
-              Layout.fillWidth: true
-              text: root.bluetoothDeviceName(modelData)
-              textFormat: Text.PlainText
-              color: Theme.foreground
-              font.pixelSize: root.bodyFontSize
-              elide: Text.ElideRight
-            }
-
-            Text {
-              text: root.bluetoothPairingAddress === modelData.address
-                ? "Connecting…"
-                : root.bluetoothDeviceActionText(modelData, "Connect")
-              color: Theme.accent
-              font.pixelSize: root.captionFontSize
-            }
-          }
         }
-
-        Button {
-          readonly property bool confirming:
-            root.pendingBluetoothForgetAddress === modelData.address
-
-          Layout.preferredWidth: confirming ? 70 : 54
-          Layout.preferredHeight: root.listRowHeight
-          accessibleName: confirming
-            ? "Confirm forgetting " + root.bluetoothDeviceName(modelData)
-            : "Forget " + root.bluetoothDeviceName(modelData)
-          buttonBorderColor: confirming || hovered ? Theme.error : Theme.border
-          onClicked: root.requestBluetoothForget(modelData)
-
-          Text {
-            anchors.centerIn: parent
-            text: parent.confirming ? "Confirm?" : "Forget"
-            color: Theme.error
-            font.pixelSize: root.captionFontSize
-          }
-        }
+        ForgetControl { device: modelData }
       }
-    }
-
-    Text {
-      visible: root.availableBluetoothDevices.length === 0
-      text: "None"
-      color: Theme.border
-      font.pixelSize: root.captionFontSize
     }
 
     Rectangle {
@@ -353,46 +436,20 @@ SystemSection {
     Repeater {
       model: root.closeBluetoothDevices
 
-      Button {
-        id: nearbyDeviceButton
-
+      DeviceButton {
         required property var modelData
         readonly property bool pairing:
           root.bluetoothPairingAddress === modelData.address
-
         width: root.width
-        implicitHeight: root.listRowHeight
+        device: modelData
+        statusText: pairing ? "Pairing…" : "Nearby device"
+        actionText: pairing ? "Cancel" : "Pair"
         enabled: root.bluetoothPairingAddress === "" || pairing
-        accessibleName: pairing
-          ? "Cancel pairing " + root.bluetoothDeviceName(modelData)
-          : "Pair " + root.bluetoothDeviceName(modelData)
-        buttonBorderColor: hovered ? Theme.accent : Theme.border
+        accessibleName: (pairing ? "Cancel pairing " : "Pair ")
+          + root.bluetoothDeviceName(modelData)
         onClicked: {
-          if (pairing)
-            root.cancelBluetoothPairing(modelData)
-          else
-            root.pairBluetoothDevice(modelData)
-        }
-
-        RowLayout {
-          anchors.fill: parent
-          anchors.leftMargin: root.spaceMd
-          anchors.rightMargin: root.spaceMd
-
-          Text {
-            Layout.fillWidth: true
-            text: root.bluetoothDeviceName(modelData)
-            textFormat: Text.PlainText
-            color: Theme.foreground
-            font.pixelSize: root.bodyFontSize
-            elide: Text.ElideRight
-          }
-
-          Text {
-            text: nearbyDeviceButton.pairing ? "Cancel" : "Pair"
-            color: nearbyDeviceButton.pairing ? Theme.info : Theme.accent
-            font.pixelSize: root.captionFontSize
-          }
+          if (pairing) root.cancelBluetoothPairing(modelData)
+          else root.pairBluetoothDevice(modelData)
         }
       }
     }
@@ -505,7 +562,8 @@ SystemSection {
 
     Text {
       visible: root.closeBluetoothDevices.length === 0
-      text: root.bluetoothAdapter?.discovering ? "Searching…" : "None found"
+        && root.bluetoothAdapter?.discovering
+      text: "Searching…"
       color: Theme.border
       font.pixelSize: root.captionFontSize
     }

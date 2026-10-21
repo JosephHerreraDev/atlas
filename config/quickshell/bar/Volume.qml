@@ -6,6 +6,8 @@ import "../shared/"
 Item {
   id: root
 
+  property bool highlighted: false
+
   readonly property var sink: AudioState.audioSink
   readonly property real volume: AudioState.volume
   readonly property bool muted: AudioState.muted
@@ -41,7 +43,9 @@ Item {
     highSource: Qt.resolvedUrl("../assets/volume-max.svg")
     iconColor: !root.available
       ? Theme.border
-      : (root.muted ? Theme.error : Theme.foreground)
+      : (root.highlighted
+        ? Theme.accent
+        : (root.muted ? Theme.error : Theme.success))
     accessibleName: root.accessibleDescription
   }
 }

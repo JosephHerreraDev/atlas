@@ -20,6 +20,7 @@ Singleton {
 
   readonly property bool operationBusy: captureBusy || recordingActionBusy
 
+  property string recordingAudioSource: "system"
   property bool recordingActive: false
   property bool recordingPaused: false
   property int recordingElapsedSeconds: 0
@@ -64,7 +65,9 @@ Singleton {
     operationMessage = isRecordingMode(mode)
       ? "Starting…"
       : "Capturing…"
-    captureProcess.exec(["atlas-screenshot", mode])
+    const command = ["atlas-screenshot", mode]
+    if (isRecordingMode(mode)) command.push("--audio", recordingAudioSource)
+    captureProcess.exec(command)
   }
 
   function performRecordingAction(action: string): void {

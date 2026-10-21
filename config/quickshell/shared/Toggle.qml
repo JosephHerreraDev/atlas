@@ -31,15 +31,16 @@ Rectangle {
   Rectangle {
     width: 12
     height: 12
-    radius: Theme.radiusMd
+    radius: 6
     anchors.verticalCenter: parent.verticalCenter
     x: root.checked ? root.width - width - 3 : 3
     color: root.checked ? Theme.background : Theme.foreground
 
     Behavior on x {
-      NumberAnimation {
-        duration: Theme.motionFast + 20
-        easing.type: Easing.OutCubic
+      SpringAnimation {
+        spring: Theme.motionSpring
+        damping: Theme.motionDamping
+        epsilon: Theme.motionEpsilon
       }
     }
   }

@@ -10,6 +10,8 @@ import "../shared/"
 Item {
   id: root
 
+  property bool highlighted: false
+
   readonly property var device: UPower.displayDevice
   readonly property real percentage: device.ready ? device.percentage : 0
   readonly property bool charging: device.ready && (!UPower.onBattery
@@ -34,8 +36,10 @@ Item {
     layer.enabled: true
     layer.effect: MultiEffect {
       brightness: 1
-      colorization: 1
-      colorizationColor: {
+    colorization: 1
+    colorizationColor: {
+        if (root.highlighted)
+          return Theme.accent
         if (root.charging)
           return Theme.info
         if (root.percentage <= 0.2)

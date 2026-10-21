@@ -6,6 +6,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../"
+import "../bar" as Bar
 
 Scope {
   id: root
@@ -300,12 +301,20 @@ Scope {
       Rectangle {
         id: panel
 
+        readonly property string horizontalPlacement: Placement.horizontal(Placement.themeSelector)
+        readonly property string verticalPlacement: Placement.vertical(Placement.themeSelector)
+
         readonly property int visibleRows: Math.max(1, Math.min(7,
           Math.floor((window.height - 160) / 46)))
 
         width: Math.max(1, Math.min(400, window.width - 32))
         implicitHeight: content.implicitHeight + 28
-        anchors.centerIn: parent
+        height: Math.min(implicitHeight, window.height - 48
+          - Bar.BarStyle.topClearance - Bar.BarStyle.bottomClearance)
+        x: Placement.itemX(Placement.themeSelector, window.width, width, Placement.edgeMargin)
+        y: Placement.itemY(Placement.themeSelector, window.height, height,
+          Placement.edgeMargin + Bar.BarStyle.topClearance,
+          Placement.edgeMargin + Bar.BarStyle.bottomClearance)
         opacity: root.opened ? 1 : 0
         scale: root.opened ? 1 : 0.96
         radius: Theme.radiusLg
@@ -317,7 +326,13 @@ Scope {
         border.width: Theme.borderWidth
         border.color: Theme.border
         Behavior on opacity { NumberAnimation { duration: root.animationDuration } }
-        Behavior on scale { NumberAnimation { duration: root.animationDuration } }
+        Behavior on scale {
+          SpringAnimation {
+            spring: Theme.motionSpring
+            damping: Theme.motionDamping
+            epsilon: Theme.motionEpsilon
+          }
+        }
         MouseArea { anchors.fill: parent; onClicked: function(mouse) { mouse.accepted = true } }
 
         ColumnLayout {
@@ -477,7 +492,7 @@ Scope {
               RowLayout {
                 anchors.fill: parent
                 anchors.margins: 12
-                spacing: Theme.radiusMd
+                spacing: Theme.spaceSm
 
                 Text {
                   Layout.fillWidth: true

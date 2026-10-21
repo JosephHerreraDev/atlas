@@ -1,0 +1,17 @@
+singleton WidgetState 1.0 WidgetState.qml
+singleton NotesState 1.0 NotesState.qml
+StickyNotes 1.0 StickyNotes.qml
+PlayerWidget 1.0 PlayerWidget.qml
+PlayerVisualizer 1.0 PlayerVisualizer.qml
+ScrollingText 1.0 ScrollingText.qml
+TasksWidget 1.0 TasksWidget.qml
+TaskEditor 1.0 TaskEditor.qml
+ReminderTimeSelector 1.0 ReminderTimeSelector.qml
+singleton FocusTimerState 1.0 FocusTimerState.qml
+FocusTimerWidget 1.0 FocusTimerWidget.qml
+WidgetMenu 1.0 WidgetMenu.qml
+WidgetMenuItem 1.0 WidgetMenuItem.qml
+WidgetMenuSeparator 1.0 WidgetMenuSeparator.qml
+AlbumArtwork 1.0 AlbumArtwork.qml
+WidgetPalette 1.0 WidgetPalette.qml
+TaskDateSelector 1.0 TaskDateSelector.qml

@@ -30,9 +30,10 @@ Item {
   Accessible.focusable: true
 
   Behavior on scale {
-    NumberAnimation {
-      duration: Theme.motionQuick
-      easing.type: Easing.OutQuad
+    SpringAnimation {
+      spring: Theme.motionSpring
+      damping: Theme.motionDamping
+      epsilon: Theme.motionEpsilon
     }
   }
 
@@ -47,7 +48,7 @@ Item {
         ? Theme.surfaceHover
         : "transparent"
     }
-    border.width: root.attention || root.selected || root.activeFocus
+    border.width: root.attention || root.activeFocus
       ? Theme.borderWidth
       : 0
     border.color: root.attention ? Theme.warning : Theme.accent
