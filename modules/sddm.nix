@@ -20,7 +20,12 @@ let
 in {
   services.displayManager.sddm = {
     enable = true;
-    wayland.enable = false;
+    # X11 can start an empty NVIDIA screen on hybrid laptops when the external
+    # monitor is unplugged. KWin discovers outputs across the available DRM GPUs.
+    wayland = {
+      enable = true;
+      compositor = "kwin";
+    };
     theme = "atlas";
     extraPackages = with pkgs.kdePackages; [
       qtimageformats
