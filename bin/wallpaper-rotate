@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+
+set -u
+
+config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+appearance_config="$config_home/hypr/hyprland/looknfeel.lua"
+style_dir="$config_home/atlas/style/current"
+runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
+# The kernel releases this lock even if Quickshell kills the process during
+# reload. A directory lock can survive that and block every later startup.
+lock_file="$runtime_dir/atlas-wallpaper-rotate-${UID}.lockfile"
+exec 9>"$lock_file" || exit 1
+flock -n 9 || exit 0
+
+setting() {
+  local key="$1"
+  local fallback="$2"
+  local line
+  line="$(grep -E "^-- ${key} = " "$appearance_config" 2>/dev/null | tail -n 1)"
+  if [[ -z "$line" ]]; then
+    printf '%s\n' "$fallback"
+    return
+  fi
+  printf '%s\n' "${line#*= }"
+}
+
+choose_wallpaper() {
+  local source="$1"
+  local directory=""
+  local configured
+  local candidate
+  local -a wallpapers=()
+  local -a alternatives=()
+
+  if [[ "$source" == "theme" ]]; then
+    mapfile -t wallpapers < <(wallpaper-list theme)
+  else
+    configured="$(setting atlas-wallpaper-directory '""')"
+    configured="${configured#\"}"
+    configured="${configured%\"}"
+    directory="${configured:-$HOME/Pictures/wallpapers}"
+    [[ -d "$directory" ]] || return
+    mapfile -t wallpapers < <(
+      find "$directory" -type f \
+        \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) \
+        -print | sort
+    )
+  fi
+
+  ((${#wallpapers[@]} > 0)) || return
+  for candidate in "${wallpapers[@]}"; do
+    if [[ ! -f "$style_dir/background" ]] || ! cmp -s "$candidate" "$style_dir/background"; then
+      alternatives+=("$candidate")
+    fi
+  done
+  if ((${#alternatives[@]} > 0)); then
+    wallpapers=("${alternatives[@]}")
+  fi
+  candidate="${wallpapers[RANDOM % ${#wallpapers[@]}]}"
+  wallpaper-set --no-theme --directory "$(dirname "$candidate")" "$candidate" >/dev/null
+}
+
+last_signature=""
+next_change=0
+while true; do
+  enabled="$(setting atlas-wallpaper-rotation false 9>&-)"
+  source="$(setting atlas-wallpaper-rotation-source '"theme"' 9>&-)"
+  source="${source#\"}"
+  source="${source%\"}"
+  interval="$(setting atlas-wallpaper-rotation-interval 900 9>&-)"
+  [[ "$interval" =~ ^[0-9]+$ ]] || interval=900
+  ((interval >= 60 && interval <= 86400)) || interval=900
+  [[ "$source" == "theme" || "$source" == "general" ]] || source="theme"
+
+  signature="$enabled:$source:$interval"
+  now="$(date +%s 9>&-)"
+  if [[ "$signature" != "$last_signature" ]]; then
+    next_change=$((now + interval))
+    last_signature="$signature"
+  fi
+  if [[ "$enabled" == "true" && "$now" -ge "$next_change" ]]; then
+    choose_wallpaper "$source" 9>&- || true
+    next_change=$((now + interval))
+  fi
+  sleep 5 9>&-
+done

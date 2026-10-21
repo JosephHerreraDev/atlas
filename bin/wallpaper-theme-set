@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+die() { printf 'wallpaper-theme-set: %s\n' "$*" >&2; exit 1; }
+
+for command_name in matugen jq theme-set sha256sum; do
+  command -v "$command_name" >/dev/null || die "required command not found: $command_name"
+done
+
+wallpaper="${1:-}"
+[[ -n "$wallpaper" && -f "$wallpaper" ]] || die "wallpaper does not exist: $wallpaper"
+wallpaper="$(realpath "$wallpaper")"
+
+custom_themes_dir="${XDG_CONFIG_HOME:-$HOME/.config}/atlas/themes"
+base_name="$(basename "${wallpaper%.*}")"
+slug="$(printf '%s' "$base_name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//; s/-$//')"
+[[ -n "$slug" ]] || slug="wallpaper"
+slug="${slug:0:40}"
+hash="$(sha256sum "$wallpaper" | cut -c1-12)"
+theme_name="wallpaper-${slug}-${hash}"
+theme_dir="$custom_themes_dir/$theme_name"
+
+if [[ -f "$theme_dir/colors.toml" && -d "$theme_dir/wallpapers" ]]; then
+  theme-set "$theme_name"
+  exit 0
+fi
+
+mkdir -p "$custom_themes_dir"
+temporary_dir="$(mktemp -d "$custom_themes_dir/.${theme_name}.XXXXXX")"
+trap 'rm -rf -- "$temporary_dir"' EXIT
+
+palette_file="$temporary_dir/palette.json"
+matugen image "$wallpaper" \
+  --source-color-index 0 \
+  --type scheme-tonal-spot \
+  --json hex \
+  --old-json-output >"$palette_file"
+
+jq -er '
+  (if .colors.dark then .colors.dark
+   else .colors | with_entries(.value = (.value.dark // .value.default // .value))
+   end) as $c |
+  def color($name): $c[$name] // error("Matugen color missing: " + $name);
+  [
+    ["background", color("background")],
+    ["surface", color("surface")],
+    ["surface_hover", color("surface_variant")],
+    ["foreground", color("on_background")],
+    ["foreground_muted", color("on_surface_variant")],
+    ["border", color("outline_variant")],
+    ["accent", color("primary")],
+    ["selection_background", color("primary_container")],
+    ["selection_foreground", color("on_primary_container")],
+    ["cursor", color("primary")],
+    ["error", color("error")],
+    ["warning", color("tertiary")],
+    ["success", color("secondary")],
+    ["info", color("primary")],
+    ["ansi_black", color("surface_variant")],
+    ["ansi_red", color("error")],
+    ["ansi_green", color("secondary")],
+    ["ansi_yellow", color("tertiary")],
+    ["ansi_blue", color("primary")],
+    ["ansi_magenta", color("tertiary")],
+    ["ansi_cyan", color("secondary")],
+    ["ansi_white", color("on_surface")],
+    ["ansi_bright_black", color("outline")],
+    ["ansi_bright_red", color("error")],
+    ["ansi_bright_green", color("secondary")],
+    ["ansi_bright_yellow", color("tertiary")],
+    ["ansi_bright_blue", color("primary")],
+    ["ansi_bright_magenta", color("tertiary")],
+    ["ansi_bright_cyan", color("secondary")],
+    ["ansi_bright_white", color("on_background")]
+  ] | .[] | .[0] + " = \"" + (.[1] | ascii_downcase) + "\""
+' "$palette_file" >"$temporary_dir/colors.toml"
+
+mkdir -p "$temporary_dir/wallpapers"
+extension="${wallpaper##*.}"
+cp "$wallpaper" "$temporary_dir/wallpapers/background.$extension"
+rm -f "$palette_file"
+
+mv "$temporary_dir" "$theme_dir"
+trap - EXIT
+
+theme-set "$theme_name"
+printf 'Created and applied personal theme: %s\n' "$theme_name"

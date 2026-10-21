@@ -3,10 +3,21 @@
 set -euo pipefail
 
 ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
+preserve_theme=false
+if [[ "${1:-}" == "--no-theme" ]]; then
+  preserve_theme=true
+  shift
+fi
 general_wallpapers_dir="$(realpath -m "$HOME/Pictures/wallpapers")"
 theme_wallpapers_dir="$(realpath -m "$ATLAS_PATH/themes")"
 custom_theme_wallpapers_dir="$(realpath -m "${XDG_CONFIG_HOME:-$HOME/.config}/atlas/themes")"
-wallpaper="${1:-}"
+custom_wallpapers_dir=""
+if [[ "${1:-}" == "--directory" ]]; then
+  custom_wallpapers_dir="$(realpath -m "${2:-}")"
+  wallpaper="${3:-}"
+else
+  wallpaper="${1:-}"
+fi
 
 if [[ -z "$wallpaper" || ! -f "$wallpaper" ]]; then
   echo "Wallpaper does not exist: $wallpaper" >&2
@@ -16,13 +27,21 @@ fi
 wallpaper="$(realpath "$wallpaper")"
 case "$wallpaper" in
   "$general_wallpapers_dir"/* | "$theme_wallpapers_dir"/*/wallpapers/* | "$custom_theme_wallpapers_dir"/*/wallpapers/*) ;;
+  "$custom_wallpapers_dir"/*) [[ -n "$custom_wallpapers_dir" ]] || exit 1 ;;
   *)
     echo "Wallpaper is outside the general or theme wallpaper directories: $wallpaper" >&2
     exit 1
     ;;
 esac
 
+appearance_config="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland/looknfeel.lua"
+if [[ "$preserve_theme" == false && -f "$appearance_config" ]] &&
+  grep -Eq '^-- atlas-wallpaper-theme = true$' "$appearance_config"; then
+  exec wallpaper-theme-set "$wallpaper"
+fi
+
 style_dir="${XDG_CONFIG_HOME:-$HOME/.config}/atlas/style/current"
 mkdir -p "$style_dir"
 cp "$wallpaper" "$style_dir/background"
 theme-refresh
+sddm-wallpaper-set "$wallpaper"

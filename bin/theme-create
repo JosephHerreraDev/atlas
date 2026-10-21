@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ATLAS_PATH="${ATLAS_PATH:-$HOME/.local/share/atlas}"
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+THEMES_DIR="$CONFIG_HOME/atlas/themes"
+
+theme_name="${1:-}"
+shift || true
+
+color_keys=(
+  background surface surface_hover foreground foreground_muted border accent
+  selection_background selection_foreground cursor error warning success info
+)
+
+if [[ ! "$theme_name" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$ ]]; then
+  echo "Theme name must start with a letter or number and contain only letters, numbers, _ or -." >&2
+  exit 2
+fi
+
+if (( $# != ${#color_keys[@]} )); then
+  echo "Expected ${#color_keys[@]} colors." >&2
+  exit 2
+fi
+
+colors=("$@")
+
+for color in "$@"; do
+  [[ "$color" =~ ^#[0-9A-Fa-f]{6}$ ]] || {
+    echo "Invalid color: $color" >&2
+    exit 2
+  }
+done
+
+theme_dir="$THEMES_DIR/$theme_name"
+[[ ! -e "$theme_dir" ]] || {
+  echo "Theme already exists: $theme_name" >&2
+  exit 1
+}
+
+mkdir -p "$theme_dir/wallpapers"
+
+{
+  for index in "${!color_keys[@]}"; do
+    printf '%s = "%s"\n' "${color_keys[$index]}" "${colors[$index]}"
+  done
+  printf '\n'
+  printf 'ansi_black = "%s"\n' "${6}"
+  printf 'ansi_red = "%s"\n' "${11}"
+  printf 'ansi_green = "%s"\n' "${12}"
+  printf 'ansi_yellow = "%s"\n' "${13}"
+  printf 'ansi_blue = "%s"\n' "${7}"
+  printf 'ansi_magenta = "%s"\n' "${7}"
+  printf 'ansi_cyan = "%s"\n' "${14}"
+  printf 'ansi_white = "%s"\n' "${4}"
+  printf 'ansi_bright_black = "%s"\n' "${6}"
+  printf 'ansi_bright_red = "%s"\n' "${11}"
+  printf 'ansi_bright_green = "%s"\n' "${12}"
+  printf 'ansi_bright_yellow = "%s"\n' "${13}"
+  printf 'ansi_bright_blue = "%s"\n' "${7}"
+  printf 'ansi_bright_magenta = "%s"\n' "${7}"
+  printf 'ansi_bright_cyan = "%s"\n' "${14}"
+  printf 'ansi_bright_white = "%s"\n' "${4}"
+} > "$theme_dir/colors.toml"
+
+wallpaper="$(find "$CONFIG_HOME/atlas/style/current" "$ATLAS_PATH/themes" \
+  -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) \
+  -print -quit 2>/dev/null || true)"
+[[ -n "$wallpaper" ]] || {
+  echo "No wallpaper is available for the new theme." >&2
+  rm -rf "$theme_dir"
+  exit 1
+}
+cp "$wallpaper" "$theme_dir/wallpapers/theme-background.${wallpaper##*.}"
+
+theme-set "$theme_name"
+printf 'Created and applied theme: %s\n' "$theme_name"

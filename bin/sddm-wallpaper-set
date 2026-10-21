@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+appearance_config="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland/looknfeel.lua"
+if [[ ! -f "$appearance_config" ]] ||
+  ! grep -Eq '^-- atlas-sddm-wallpaper = true$' "$appearance_config"; then
+  exit 0
+fi
+
+source_wallpaper="${1:-}"
+if [[ -z "$source_wallpaper" || ! -f "$source_wallpaper" ]]; then
+  echo "SDDM wallpaper does not exist: $source_wallpaper" >&2
+  exit 1
+fi
+
+wallpaper_dir="${ATLAS_SDDM_WALLPAPER_DIR:-/var/lib/atlas/sddm}"
+wallpaper="$wallpaper_dir/wallpaper.jpg"
+temporary_wallpaper=""
+
+cleanup() {
+  if [[ -n "$temporary_wallpaper" ]]; then
+    rm -f -- "$temporary_wallpaper"
+  fi
+}
+trap cleanup EXIT
+
+mkdir -p -- "$wallpaper_dir"
+temporary_wallpaper="$(mktemp --tmpdir="$wallpaper_dir" .wallpaper.XXXXXX)"
+cp -- "$source_wallpaper" "$temporary_wallpaper"
+chmod 0644 "$temporary_wallpaper"
+mv -f -- "$temporary_wallpaper" "$wallpaper"
+temporary_wallpaper=""

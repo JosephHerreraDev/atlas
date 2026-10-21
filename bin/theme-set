@@ -80,5 +80,6 @@ mkdir -p "$QUICKSHELL_THEME_DIR"
 cp "$CURRENT_THEME_DIR/ThemeColors.json" "$QUICKSHELL_THEME_DIR/"
 
 theme-refresh
+sddm-wallpaper-set "$wallpaper"
 
 echo "Theme set to: $theme"
