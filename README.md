@@ -10,11 +10,11 @@ Atlas is a modern, minimal, keyboard-centric NixOS configuration designed for sp
 ## Features
 
 - Hyprland session with keyboard-focused navigation and window management
-- Quickshell bar, launcher, notifications, power menu, and system controls
+- Quickshell bar, Start menu, notifications, power menu, and system controls
 - Bundled themes with matching application colors and wallpapers
 - SDDM login screen and Plymouth boot theme
 - Home Manager configuration for terminal and desktop applications
-- Optional modules for Bluetooth, development tools, media, productivity, etc
+- Bluetooth support plus optional development tools, media, productivity, etc
 - Hardware-aware installation that enables modules only
   when matching hardware is detected
 - Maintenance commands for checking, rebuilding, updating, diagnosing,
@@ -78,7 +78,6 @@ It is an ordinary NixOS module. Optional Atlas modules are enabled through
 
 {
   imports = [
-    atlasModules.bluetooth
     atlasModules.development
     atlasModules.media
     atlasModules.productivity
@@ -91,8 +90,9 @@ It is an ordinary NixOS module. Optional Atlas modules are enabled through
 }
 ```
 
-Add or remove imports to control optional features. Native NixOS options and
-personal modules can be used in the same file.
+Bluetooth is enabled automatically. Add or remove the other imports to control
+optional features. Native NixOS options and personal modules can be used in the
+same file.
 
 Check a change before activating it:
 
@@ -108,9 +108,9 @@ already exist are not overwritten and can be edited directly.
 
 ### Settings app
 
-Open Atlas Settings by clicking the NixOS logo beside the workspaces or pressing
-`Super + ,`. The app manages system and display settings while preserving
-unrelated configuration.
+Open Atlas Settings with `Super + ,`, or choose Settings from the Start menu.
+The NixOS logo beside the workspaces opens that menu as well. The app manages
+system and display settings while preserving unrelated configuration.
 
 Hyprland pages reload the compositor after saving and restore the previous file
 if Hyprland reports an error. System changes are validated before saving and
@@ -207,8 +207,21 @@ Open the general wallpaper selector with `Super + W`. General wallpapers are
 read from `~/Pictures/wallpapers`. Use `Super + Alt + W` to select from the
 current theme's wallpapers.
 
-Atlas does not create or import custom themes; users manage them directly in
-the directory above.
+The Wallpapers settings can also rotate the background automatically. Choose
+either the current theme's wallpapers or the general wallpaper folder and set
+an interval from one minute to one day. Rotation preserves the active color
+theme, including when wallpaper-based theme generation is enabled.
+
+Enable **Use wallpaper on login screen** to copy each newly selected wallpaper
+to `/var/lib/atlas/sddm/wallpaper.jpg`, the mutable background used by the Atlas
+SDDM theme. This also applies to automatic rotation and theme changes.
+
+The Appearance settings include an optional **Create theme from wallpaper**
+mode. When enabled, selecting any local, theme, or Wallhaven wallpaper uses
+Matugen to create a dark palette, stores the generated theme under the custom
+theme directory above, copies the wallpaper into it, and applies it through
+the normal Atlas theme pipeline. When disabled, wallpaper selection remains
+independent of the active theme.
 
 ### Keybindings
 
@@ -217,12 +230,11 @@ the directory above.
 | Shortcut | Action |
 | --- | --- |
 | `Super + Enter` | Open Kitty |
-| `Super + Space` | Open the application launcher |
+| `Super + Space` | Open the Start menu |
 | `Super + ,` | Open Atlas Settings |
 | `Super + T` | Open the theme selector |
 | `Super + W` | Open the general wallpaper selector |
 | `Super + Alt + W` | Open the current-theme wallpaper selector |
-| `Super + A` | Open quick settings |
 | `Super + L` | Lock the session |
 | `Print` | Open the screenshot menu |
 

@@ -26,14 +26,14 @@
 
 | Keybinding            | Function                         |
 | --------------------- | -------------------------------- |
-| `SUPER + SPACE`       | App launcher                     |
+| `SUPER + SPACE`       | Start menu                       |
 | `SUPER + ,`           | Atlas Settings                   |
 | `SUPER + T`           | Theme selector                   |
-| `SUPER + A`           | Notification Center              |
 | `SUPER + W`           | Wallpaper selector               |
 | `SUPER + ALT + W`     | Current theme wallpaper selector |
 | `PRINT`               | Screenshot menu                  |
 | `SUPER + SHIFT + V`   | Clipboard history                |
+| `SUPER + ALT + N`     | Toggle sticky notes              |
 | `SUPER + L`           | Lock session                     |
 
 ## Programs
