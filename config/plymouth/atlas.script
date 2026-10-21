@@ -6,10 +6,13 @@ Window.SetBackgroundBottomColor(0.031, 0.043, 0.063);
 logo_image = Image("logo.png");
 logo_sprite = Sprite(logo_image);
 
-dot_image = Image("dot.png");
-dot_1 = Sprite(dot_image);
-dot_2 = Sprite(dot_image);
-dot_3 = Sprite(dot_image);
+progress_track_image = Image("progress-track.png");
+progress_fill_image = Image("progress-fill.png");
+progress_track = Sprite(progress_track_image);
+progress_fill = Sprite(progress_fill_image.Scale(1, progress_fill_image.GetHeight()));
+progress_target = 0;
+progress_displayed = 0;
+progress_width = 0;
 
 prompt_sprite = Sprite();
 entry_sprite = Sprite();
@@ -24,26 +27,44 @@ fun place_main_elements() {
   logo_sprite.SetY(center_y - logo_image.GetHeight() / 2 - 36);
   logo_sprite.SetZ(10);
 
-  dots_y = center_y + logo_image.GetHeight() / 2 + 42;
-  dot_1.SetX(center_x - 28);
-  dot_2.SetX(center_x - 4);
-  dot_3.SetX(center_x + 20);
-  dot_1.SetY(dots_y);
-  dot_2.SetY(dots_y);
-  dot_3.SetY(dots_y);
-  dot_1.SetZ(10);
-  dot_2.SetZ(10);
-  dot_3.SetZ(10);
+  progress_x = center_x - progress_track_image.GetWidth() / 2;
+  progress_y = center_y + logo_image.GetHeight() / 2 + 42;
+  progress_track.SetX(progress_x);
+  progress_track.SetY(progress_y);
+  progress_track.SetZ(10);
+  progress_fill.SetX(progress_x);
+  progress_fill.SetY(progress_y);
+  progress_fill.SetZ(11);
+  progress_fill.SetOpacity(0);
 }
 
 place_main_elements();
 
+fun boot_progress_callback(duration, progress) {
+  # Keep progress within the track and avoid moving backwards when estimates change.
+  if (progress < 0)
+    progress = 0;
+  if (progress > 1)
+    progress = 1;
+  if (progress > progress_target)
+    global.progress_target = progress;
+}
+
 fun refresh_callback() {
   if (status == "normal") {
-    t = Plymouth.GetTime() * 3.0;
-    dot_1.SetOpacity(0.20 + 0.80 * ((Math.Sin(t) + 1.0) / 2.0));
-    dot_2.SetOpacity(0.20 + 0.80 * ((Math.Sin(t - 1.6) + 1.0) / 2.0));
-    dot_3.SetOpacity(0.20 + 0.80 * ((Math.Sin(t - 3.2) + 1.0) / 2.0));
+    # Ease toward Plymouth's reported boot progress rather than jumping between stages.
+    global.progress_displayed += (progress_target - progress_displayed) * 0.12;
+    if (progress_target - progress_displayed < 0.001)
+      global.progress_displayed = progress_target;
+    width = Math.Int(progress_fill_image.GetWidth() * progress_displayed);
+    if (width < 1)
+      width = 1;
+    if (width != progress_width) {
+      progress_fill.SetImage(progress_fill_image.Scale(width, progress_fill_image.GetHeight()));
+      global.progress_width = width;
+    }
+    if (progress_target > 0)
+      progress_fill.SetOpacity(1);
   }
 }
 
@@ -52,9 +73,11 @@ fun hide_prompt() {
   prompt_sprite.SetOpacity(0);
   entry_sprite.SetOpacity(0);
   logo_sprite.SetOpacity(1);
-  dot_1.SetOpacity(1);
-  dot_2.SetOpacity(1);
-  dot_3.SetOpacity(1);
+  progress_track.SetOpacity(1);
+  if (progress_target > 0)
+    progress_fill.SetOpacity(1);
+  else
+    progress_fill.SetOpacity(0);
 }
 
 fun display_normal_callback() {
@@ -63,9 +86,8 @@ fun display_normal_callback() {
 
 fun display_password_callback(prompt, bullets) {
   global.status = "password";
-  dot_1.SetOpacity(0);
-  dot_2.SetOpacity(0);
-  dot_3.SetOpacity(0);
+  progress_track.SetOpacity(0);
+  progress_fill.SetOpacity(0);
   logo_sprite.SetOpacity(0.38);
 
   if (!prompt)
@@ -103,6 +125,7 @@ fun hide_message_callback(text) {
   message_sprite.SetOpacity(0);
 }
 
+Plymouth.SetBootProgressFunction(boot_progress_callback);
 Plymouth.SetRefreshFunction(refresh_callback);
 Plymouth.SetDisplayNormalFunction(display_normal_callback);
 Plymouth.SetDisplayPasswordFunction(display_password_callback);

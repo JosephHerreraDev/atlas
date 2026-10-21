@@ -30,11 +30,8 @@ let
         -bordercolor none -border 2 \
         "$themeDir/logo.png"
 
-      magick \
-        -size 8x8 xc:none \
-        -fill '#65d1ff' \
-        -draw 'circle 4,4 4,1' \
-        "$themeDir/dot.png"
+      magick -size 180x4 xc:'#263447' "$themeDir/progress-track.png"
+      magick -size 180x4 xc:'#65d1ff' "$themeDir/progress-fill.png"
 
       runHook postInstall
     '';
